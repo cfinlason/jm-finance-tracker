@@ -11,6 +11,7 @@ import 'stores/goals_store.dart';
 import 'stores/debts_store.dart';
 
 import 'screens/onboarding/welcome_screen.dart';
+import 'screens/onboarding/accounts_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/transactions_screen.dart';
 import 'screens/insights_screen.dart';
@@ -54,6 +55,7 @@ GoRouter buildAppRouter({required Listenable refreshListenable}) {
 
       // ONBOARDING ROUTES — Tasks 14-16 add the remaining 5 GoRoute entries here
       GoRoute(path: '/onboarding/welcome', builder: (context, state) => const WelcomeScreen()),
+      GoRoute(path: '/onboarding/accounts', builder: (context, state) => const OnboardingAccountsScreen()),
 
       // TAB SHELL
       StatefulShellRoute.indexedStack(
