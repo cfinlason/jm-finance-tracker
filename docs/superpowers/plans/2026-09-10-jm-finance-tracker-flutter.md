@@ -5698,3 +5698,60 @@ Expected: no errors; empty state shows otherwise.
 git add lib/screens/notifications_screen.dart lib/app_router.dart
 git commit -m "feat: build Notifications screen with local bill and goal-milestone reminders"
 ```
+
+---
+
+### Task 27: Final integration — empty/loading state audit, full test suite, production web build
+
+**Files:**
+- No new files are expected; this task is an audit-and-fix pass across everything built in Tasks 1–26, ending in a release-mode web build ready to hand to Vercel.
+
+**Interfaces:**
+- Consumes: everything built by every prior task.
+- Produces: a verified, click-through-complete Flutter web app and a `build/web` release bundle. Deployment to Vercel itself is a separate, final step done outside this task (see the note at the end) — it needs Vercel account credentials this subagent does not have.
+
+- [ ] **Step 1: Run the full automated test suite**
+
+Run: `flutter test`
+Expected: PASS — every suite from Tasks 4–9 (money, date_utils, safe_to_spend, debt_payoff, insights, transaction_actions), no failures, no stray output.
+
+- [ ] **Step 2: Run a full static analysis**
+
+Run: `flutter analyze`
+Expected: `No issues found!` across the whole project. Fix anything it reports before proceeding — do not suppress warnings with ignore comments unless a specific lint is a known false positive, and say which and why if you do.
+
+- [ ] **Step 3: Empty/loading state audit**
+
+Re-read spec §6's requirement: "every list-driven screen (Transactions, Goals, Debt, Insights, Notifications) has an empty state." Confirm each already has one from its task:
+- Transactions (Task 18) ✓, Goals (Task 21) ✓, Debt (Task 22) ✓, Insights (Task 20) ✓, Notifications (Task 26) ✓, Home recent transactions (Task 17) ✓, Accounts (Task 24) ✓, Recurring (Task 25) ✓, Cash Flow (Task 23) ✓.
+If any screen is missing its `EmptyState`, add it now following the same pattern used elsewhere in that screen's task.
+
+- [ ] **Step 4: Full manual click-through in the browser**
+
+Run: `flutter run -d chrome`, resized to phone width (browser devtools' device toolbar, or a manually resized window ~390–430px). Starting from a clean profile (a fresh Chrome profile or incognito window, so `localStorage` is empty), walk the entire app in order:
+1. Onboarding: Welcome → add 2 accounts → set income → add 1 recurring bill → add 1 goal → Done.
+2. Home: confirm Safe to Spend, stat row, and quick actions all work.
+3. Add 3–4 transactions across different categories and both accounts (Task 19), including one edit and one delete.
+4. Transactions: confirm search and account filter narrow the list correctly.
+5. Insights: confirm category breakdown, weekly trend, and top transactions all populate.
+6. Goals: add a contribution to the goal created in onboarding; confirm progress bar and Notifications (goal reached, if target is hit) update.
+7. Debt: add 2 debts, toggle snowball/avalanche, adjust extra payment, confirm the projection updates; edit and delete a debt.
+8. Cash Flow: confirm the timeline reflects the recurring bill(s).
+9. More → Accounts/Categories/Recurring Bills/Notifications: exercise add/edit/delete on each.
+10. Reload the browser tab at several points during the walkthrough and confirm all entered data survives (proving `shared_preferences`/`localStorage` persistence works). Confirm no console errors appear in the browser devtools console during the entire walkthrough.
+
+Expected: zero console errors; all data entered survives a reload; every navigation link resolves to a real screen (no more "— built in Task N" stub text anywhere); the app renders as a centered phone-width shell at any browser window size (the `PhoneFrame` from Task 10).
+
+- [ ] **Step 5: Build the production web bundle**
+
+Run: `flutter build web --release`
+Expected: `√ Built build/web` — this is the exact directory a Vercel deploy (framework preset "Other", output directory `build/web`) will serve.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add -A
+git commit -m "chore: complete final verification pass — tests, analysis, and production web build"
+```
+
+**Deployment note:** per the design spec §9 and the user's choice to deploy once at the end, the actual Vercel deployment (`vercel --prod` or the project's Vercel dashboard/CLI, output directory `build/web`) happens after this task, as a separate step outside subagent execution — it requires Vercel account credentials the implementer subagent does not have. The controller session should hand the completed `build/web` output to Vercel (via CLI login or its own Vercel integration) once this task reports DONE.
