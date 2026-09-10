@@ -3557,3 +3557,568 @@ Expected: lands on the Home tab stub ("Home — built in Task 17"); reloading th
 git add lib/screens/onboarding/goals_screen.dart lib/screens/onboarding/done_screen.dart lib/app_router.dart
 git commit -m "feat: build onboarding goals selection and done screens, completing the onboarding flow"
 ```
+
+---
+
+### Task 17: Home screen
+
+**Files:**
+- Modify: `lib/screens/home_screen.dart` (replace Task 13's stub)
+
+**Interfaces:**
+- Consumes: `calculateSafeToSpend` (Task 5); `AccountsStore`, `RecurringStore`, `TransactionsStore`, `CategoriesStore` (Task 8, via `provider`); `AppScreen`, `AppCard`, `StatFigure`, `ListRow`, `EmptyState`, `IconChip`, `CategoryIcon` (Tasks 10–12); `formatMoney` (Task 4).
+- Produces: the Home tab — Safe-to-Spend hero, income/spending/upcoming stat row, quick actions, recent transactions. Links to `/transaction/new` (Task 19), `/debt` (Task 22), `/cash-flow` (Task 23) — no new routes registered by this task since Home already exists in the tab shell.
+
+- [ ] **Step 1: Replace the Home screen**
+
+Overwrite `lib/screens/home_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import '../theme/app_theme.dart';
+import '../models/models.dart';
+import '../widgets/app_screen.dart';
+import '../widgets/app_card.dart';
+import '../widgets/stat_figure.dart';
+import '../widgets/list_row.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/icon_chip.dart';
+import '../widgets/category_icon.dart';
+import '../utils/money.dart';
+import '../logic/safe_to_spend.dart';
+import '../stores/accounts_store.dart';
+import '../stores/recurring_store.dart';
+import '../stores/transactions_store.dart';
+import '../stores/categories_store.dart';
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final accounts = context.watch<AccountsStore>().accounts;
+    final recurringRules = context.watch<RecurringStore>().rules;
+    final transactions = context.watch<TransactionsStore>().transactions;
+    final categories = context.watch<CategoriesStore>().categories;
+
+    final safeToSpend = calculateSafeToSpend(accounts, recurringRules);
+    final recentTop5 = ([...transactions]..sort((a, b) => b.date.compareTo(a.date))).take(5).toList();
+    final monthIncome = transactions.where((t) => t.type == 'income').fold<double>(0, (s, t) => s + t.amount);
+    final monthSpending = transactions.where((t) => t.type == 'expense').fold<double>(0, (s, t) => s + t.amount.abs());
+    final upcoming = recurringRules.fold<double>(0, (s, r) => s + r.amount);
+
+    Category? categoryFor(String id) {
+      for (final c in categories) {
+        if (c.id == id) return c;
+      }
+      return null;
+    }
+
+    return AppScreen(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppCard(
+            emphasis: true,
+            margin: const EdgeInsets.only(bottom: AppSpacing.xl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('SAFE TO SPEND', style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.1)),
+                const SizedBox(height: AppSpacing.sm),
+                Text(formatMoney(safeToSpend), style: const TextStyle(color: AppColors.text, fontSize: 60, fontWeight: FontWeight.w800)),
+              ],
+            ),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              StatFigure(label: 'Income', amount: monthIncome, tone: StatTone.positive),
+              StatFigure(label: 'Spending', amount: monthSpending),
+              StatFigure(label: 'Upcoming', amount: upcoming),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          Container(
+            decoration: BoxDecoration(border: Border.all(color: AppColors.border), borderRadius: BorderRadius.circular(14)),
+            margin: const EdgeInsets.only(bottom: AppSpacing.xl),
+            child: Row(
+              children: [
+                Expanded(child: _QuickAction(icon: LucideIcons.plus, label: 'Add Transaction', onTap: () => context.push('/transaction/new'))),
+                Expanded(child: _QuickAction(icon: LucideIcons.creditCard, label: 'View Debt', onTap: () => context.push('/debt'))),
+                Expanded(child: _QuickAction(icon: LucideIcons.trendingUp, label: 'Cash Flow', onTap: () => context.push('/cash-flow'))),
+              ],
+            ),
+          ),
+          const Text('Recent Transactions', style: TextStyle(color: AppColors.text, fontSize: 20, fontWeight: FontWeight.w700)),
+          const SizedBox(height: AppSpacing.md),
+          if (recentTop5.isEmpty)
+            EmptyState(
+              icon: const IconChip(child: Icon(LucideIcons.plus, size: 16, color: AppColors.textMuted)),
+              message: 'No transactions yet.',
+              ctaLabel: 'Add Transaction',
+              onPressCta: () => context.push('/transaction/new'),
+            )
+          else
+            AppCard(
+              child: Column(
+                children: [
+                  for (var i = 0; i < recentTop5.length; i++)
+                    ListRow(
+                      icon: CategoryIcon(name: categoryFor(recentTop5[i].categoryId)?.icon ?? 'more-horizontal'),
+                      title: categoryFor(recentTop5[i].categoryId)?.name ?? 'Uncategorized',
+                      caption: recentTop5[i].note.isNotEmpty ? recentTop5[i].note : recentTop5[i].date.substring(0, 10),
+                      amount: recentTop5[i].amount,
+                      isLast: i == recentTop5.length - 1,
+                      onTap: () => context.push('/transaction/${recentTop5[i].id}'),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _QuickAction({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+        child: Column(
+          children: [
+            Icon(icon, size: 18, color: AppColors.text),
+            const SizedBox(height: 6),
+            Text(label, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.text, fontSize: 11, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Verify in the browser**
+
+Run `flutter run -d chrome` at phone width. Complete onboarding with one account and no transactions.
+Expected: Home shows Safe to Spend equal to the account balance, all stat figures at `J$0.00`, and the empty state under "Recent Transactions" with a working "Add Transaction" CTA (navigates to a blank/404 route until Task 19 — expected for now).
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add lib/screens/home_screen.dart
+git commit -m "feat: build Home screen with Safe to Spend hero and recent transactions"
+```
+
+---
+
+### Task 18: Transactions screen (grouped list, search, account filter)
+
+**Files:**
+- Modify: `lib/screens/transactions_screen.dart` (replace Task 13's stub)
+
+**Interfaces:**
+- Consumes: `TransactionsStore`, `CategoriesStore`, `AccountsStore` (Task 8); `AppScreen`, `AppCard`, `ListRow`, `EmptyState`, `IconChip`, `CategoryIcon`, `AppSegmentedControl` (Tasks 10–12).
+- Produces: the Transactions tab. Links to `/transaction/new` and `/transaction/:id` (Task 19).
+
+- [ ] **Step 1: Replace the Transactions screen**
+
+Overwrite `lib/screens/transactions_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import '../theme/app_theme.dart';
+import '../models/models.dart';
+import '../widgets/app_screen.dart';
+import '../widgets/app_card.dart';
+import '../widgets/list_row.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/icon_chip.dart';
+import '../widgets/category_icon.dart';
+import '../widgets/app_segmented_control.dart';
+import '../stores/transactions_store.dart';
+import '../stores/categories_store.dart';
+import '../stores/accounts_store.dart';
+
+class TransactionsScreen extends StatefulWidget {
+  const TransactionsScreen({super.key});
+
+  @override
+  State<TransactionsScreen> createState() => _TransactionsScreenState();
+}
+
+class _TransactionsScreenState extends State<TransactionsScreen> {
+  String _query = '';
+  String _accountFilter = 'all';
+
+  @override
+  Widget build(BuildContext context) {
+    final transactions = context.watch<TransactionsStore>().transactions;
+    final categories = context.watch<CategoriesStore>().categories;
+    final accounts = context.watch<AccountsStore>().accounts;
+
+    Category? categoryFor(String id) {
+      for (final c in categories) {
+        if (c.id == id) return c;
+      }
+      return null;
+    }
+
+    final filtered = transactions.where((t) {
+      final category = categoryFor(t.categoryId);
+      final matchesQuery = _query.isEmpty ||
+          t.note.toLowerCase().contains(_query.toLowerCase()) ||
+          (category?.name.toLowerCase().contains(_query.toLowerCase()) ?? false);
+      final matchesAccount = _accountFilter == 'all' || t.accountId == _accountFilter;
+      return matchesQuery && matchesAccount;
+    }).toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
+
+    final grouped = <String, List<Transaction>>{};
+    for (final t in filtered) {
+      grouped.putIfAbsent(t.date.substring(0, 10), () => []).add(t);
+    }
+    final days = grouped.keys.toList();
+
+    return AppScreen(
+      scroll: false,
+      padded: false,
+      child: Column(
+        children: [
+          const SizedBox(height: AppSpacing.xl),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Transactions', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              decoration: BoxDecoration(border: Border.all(color: AppColors.border), borderRadius: BorderRadius.circular(14)),
+              child: Row(
+                children: [
+                  const Icon(LucideIcons.search, size: 16, color: AppColors.textMuted),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: TextField(
+                      onChanged: (v) => setState(() => _query = v),
+                      style: const TextStyle(color: AppColors.text),
+                      decoration: const InputDecoration(
+                        hintText: 'Search transactions',
+                        hintStyle: TextStyle(color: AppColors.textMuted),
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+            child: AppSegmentedControl<String>(
+              options: [
+                const SegmentOption(label: 'All Accounts', value: 'all'),
+                for (final a in accounts) SegmentOption(label: a.name, value: a.id),
+              ],
+              value: _accountFilter,
+              onChanged: (v) => setState(() => _accountFilter = v),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Expanded(
+            child: days.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                    child: EmptyState(
+                      icon: const IconChip(child: Icon(LucideIcons.plus, size: 16, color: AppColors.textMuted)),
+                      message: 'No transactions match.',
+                      ctaLabel: 'Add Transaction',
+                      onPressCta: () => context.push('/transaction/new'),
+                    ),
+                  )
+                : ListView(
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.xxxl),
+                    children: [
+                      for (final day in days) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(top: AppSpacing.md, bottom: AppSpacing.xs),
+                          child: Text(day, style: const TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.w600)),
+                        ),
+                        for (final t in grouped[day]!)
+                          AppCard(
+                            margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                            child: ListRow(
+                              icon: CategoryIcon(name: categoryFor(t.categoryId)?.icon ?? 'more-horizontal'),
+                              title: categoryFor(t.categoryId)?.name ?? 'Uncategorized',
+                              caption: t.note,
+                              amount: t.amount,
+                              isLast: true,
+                              onTap: () => context.push('/transaction/${t.id}'),
+                            ),
+                          ),
+                      ],
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Verify in the browser**
+
+Expected: empty state shows with zero transactions; search box and account filter render without errors (filter has no visible effect yet since there's nothing to filter).
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add lib/screens/transactions_screen.dart
+git commit -m "feat: build Transactions screen with search, account filter, and date grouping"
+```
+
+---
+
+### Task 19: Add/Edit Transaction screen
+
+**Files:**
+- Create: `lib/screens/transaction_edit_screen.dart`
+- Modify: `lib/app_router.dart` (register the pushed route)
+
+**Interfaces:**
+- Consumes: `TransactionActions` (Task 9); `AccountsStore`, `CategoriesStore`, `TransactionsStore`, `GoalsStore` (Task 8); `AppScreen`, `AppFormField`, `AppButton`, `AppSegmentedControl` (Tasks 10–12).
+- Produces: the shared add/edit screen reused by every "Add Transaction" entry point (Home, Transactions, Goal detail's contribution flow in Task 21). `id == 'new'` renders create mode; any other `id` loads and pre-fills that transaction for editing, with a Delete action behind a confirmation dialog.
+
+- [ ] **Step 1: Create the Add/Edit Transaction screen**
+
+Create `lib/screens/transaction_edit_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../theme/app_theme.dart';
+import '../models/models.dart';
+import '../widgets/app_screen.dart';
+import '../widgets/app_form_field.dart';
+import '../widgets/app_button.dart';
+import '../widgets/app_segmented_control.dart';
+import '../stores/accounts_store.dart';
+import '../stores/categories_store.dart';
+import '../stores/transactions_store.dart';
+import '../stores/goals_store.dart';
+import '../logic/transaction_actions.dart';
+
+class TransactionEditScreen extends StatefulWidget {
+  final String id;
+  const TransactionEditScreen({super.key, required this.id});
+
+  @override
+  State<TransactionEditScreen> createState() => _TransactionEditScreenState();
+}
+
+class _TransactionEditScreenState extends State<TransactionEditScreen> {
+  late String _type;
+  late String _amountText;
+  late String _accountId;
+  late String _categoryId;
+  late String _note;
+  String _error = '';
+  bool _initialized = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final accounts = context.watch<AccountsStore>().accounts;
+    final categories = context.watch<CategoriesStore>().categories;
+    final transactionsStore = context.watch<TransactionsStore>();
+    final isNew = widget.id == 'new';
+
+    Transaction? existing;
+    if (!isNew) {
+      for (final t in transactionsStore.transactions) {
+        if (t.id == widget.id) {
+          existing = t;
+          break;
+        }
+      }
+    }
+
+    if (!_initialized) {
+      _type = existing?.type == 'income' ? 'income' : 'expense';
+      _amountText = existing != null ? existing.amount.abs().toString() : '';
+      _accountId = existing?.accountId ?? (accounts.isNotEmpty ? accounts[0].id : '');
+      _categoryId = existing?.categoryId ?? (categories.isNotEmpty ? categories[0].id : '');
+      _note = existing?.note ?? '';
+      _initialized = true;
+    }
+
+    final amount = double.tryParse(_amountText);
+    final isValid = amount != null && amount > 0 && _accountId.isNotEmpty && _categoryId.isNotEmpty;
+
+    final actions = TransactionActions(
+      accountsStore: context.read<AccountsStore>(),
+      transactionsStore: transactionsStore,
+      goalsStore: context.read<GoalsStore>(),
+    );
+
+    void handleSave() {
+      if (!isValid) {
+        setState(() => _error = 'Enter a valid amount, account, and category.');
+        return;
+      }
+      final signedAmount = _type == 'income' ? amount! : -amount!;
+      if (isNew) {
+        actions.createTransaction(
+          accountId: _accountId,
+          categoryId: _categoryId,
+          amount: signedAmount,
+          note: _note,
+          date: DateTime.now().toIso8601String(),
+          type: _type,
+        );
+      } else if (existing != null) {
+        actions.editTransaction(existing.id, accountId: _accountId, categoryId: _categoryId, amount: signedAmount, note: _note, type: _type);
+      }
+      context.pop();
+    }
+
+    void handleDelete() {
+      showDialog(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: const Text('Delete transaction?', style: TextStyle(color: AppColors.text)),
+          content: const Text('This cannot be undone.', style: TextStyle(color: AppColors.textSecondary)),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () {
+                actions.deleteTransaction(existing!.id);
+                Navigator.pop(dialogContext);
+                context.pop();
+              },
+              child: const Text('Delete', style: TextStyle(color: AppColors.warning)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return AppScreen(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(isNew ? 'Add Transaction' : 'Edit Transaction', style: const TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+          const SizedBox(height: AppSpacing.lg),
+          AppSegmentedControl<String>(
+            options: const [SegmentOption(label: 'Expense', value: 'expense'), SegmentOption(label: 'Income', value: 'income')],
+            value: _type,
+            onChanged: (v) => setState(() => _type = v),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          AppFormField(
+            label: 'Amount (J\$)',
+            value: _amountText,
+            onChanged: (v) => setState(() => _amountText = v),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            placeholder: '0.00',
+            error: _error.isNotEmpty ? _error : null,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          const Text('ACCOUNT', style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.1)),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [for (final a in accounts) _Chip(label: a.name, active: _accountId == a.id, onTap: () => setState(() => _accountId = a.id))],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          const Text('CATEGORY', style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.1)),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [for (final c in categories) _Chip(label: c.name, active: _categoryId == c.id, onTap: () => setState(() => _categoryId = c.id))],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppFormField(label: 'Note', value: _note, onChanged: (v) => setState(() => _note = v), placeholder: 'Optional note'),
+          const SizedBox(height: AppSpacing.xl),
+          AppButton(label: 'Save', onPressed: isValid ? handleSave : null),
+          if (!isNew) ...[
+            const SizedBox(height: AppSpacing.md),
+            AppButton(label: 'Delete', variant: AppButtonVariant.secondary, onPressed: handleDelete),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _Chip({required this.label, required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: active ? AppColors.accent : Colors.transparent,
+          border: Border.all(color: active ? AppColors.accent : AppColors.border),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(label, style: TextStyle(color: active ? AppColors.accentInk : AppColors.text, fontSize: 13, fontWeight: FontWeight.w600)),
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Register the pushed route in `lib/app_router.dart`**
+
+Add the import near the other screen imports:
+```dart
+import 'screens/transaction_edit_screen.dart';
+```
+Then add this line under the `// PUSHED ROUTES` comment:
+```dart
+      GoRoute(path: '/transaction/:id', builder: (context, state) => TransactionEditScreen(id: state.pathParameters['id']!)),
+```
+
+- [ ] **Step 3: Verify the full add → edit → delete cycle in the browser**
+
+From Home or Transactions, tap "Add Transaction". Enter an amount, pick an account/category, save. Confirm: the transaction now appears on Home and Transactions. Tap it to edit, change the amount, save, confirm Home's Safe to Spend shifts by the difference. Tap Delete, confirm it disappears from both lists and Safe to Spend returns to its pre-transaction value.
+Expected: all three flows work with no errors.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add lib/screens/transaction_edit_screen.dart lib/app_router.dart
+git commit -m "feat: build Add/Edit Transaction screen with delete confirmation"
+```
