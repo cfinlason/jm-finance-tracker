@@ -698,3 +698,439 @@ Expected: PASS, 10 tests total (`+10: All tests passed!`).
 git add lib/utils/id.dart lib/utils/money.dart lib/utils/date_utils.dart test/utils/money_test.dart test/utils/date_utils_test.dart
 git commit -m "feat: add id, money formatting, and date utilities with tests"
 ```
+
+---
+
+### Task 5: Calculation — Safe to Spend (TDD)
+
+**Files:**
+- Create: `lib/logic/safe_to_spend.dart`
+- Test: `test/logic/safe_to_spend_test.dart`
+
+**Interfaces:**
+- Consumes: `Account`, `RecurringRule` from `lib/models/models.dart`; `isBefore`, `addMonths` from `lib/utils/date_utils.dart`.
+- Produces: `double calculateSafeToSpend(List<Account> accounts, List<RecurringRule> recurringRules, {DateTime? now})` — used by the Home screen (Task 17).
+- Design decision (spec left this open, resolved in §4 of the spec): "next expected income date" = exactly one calendar month after `now`.
+
+- [ ] **Step 1: Write the failing tests**
+
+Create `test/logic/safe_to_spend_test.dart`:
+```dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:jm_finance_tracker/logic/safe_to_spend.dart';
+import 'package:jm_finance_tracker/models/models.dart';
+
+Account _account(double balance, {String id = 'a1'}) => Account(
+      id: id,
+      name: 'Checking',
+      type: 'checking',
+      balance: balance,
+      createdAt: '2026-01-01T00:00:00.000Z',
+    );
+
+RecurringRule _rule(double amount, String nextDueDate) => RecurringRule(
+      id: 'r1',
+      name: 'Rent',
+      categoryId: 'c1',
+      accountId: 'a1',
+      amount: amount,
+      frequency: 'monthly',
+      nextDueDate: nextDueDate,
+    );
+
+void main() {
+  final now = DateTime(2026, 1, 1);
+
+  group('calculateSafeToSpend', () {
+    test('subtracts bills due before the next expected income date', () {
+      final accounts = [_account(10000)];
+      final rules = [_rule(3000, '2026-01-15T00:00:00.000Z')];
+      expect(calculateSafeToSpend(accounts, rules, now: now), 7000);
+    });
+
+    test('ignores bills due after the next expected income date', () {
+      final accounts = [_account(10000)];
+      final rules = [_rule(3000, '2026-03-01T00:00:00.000Z')];
+      expect(calculateSafeToSpend(accounts, rules, now: now), 10000);
+    });
+
+    test('sums balances across multiple accounts', () {
+      final accounts = [_account(5000, id: 'a1'), _account(2000, id: 'a2')];
+      expect(calculateSafeToSpend(accounts, [], now: now), 7000);
+    });
+  });
+}
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run: `flutter test test/logic/safe_to_spend_test.dart`
+Expected: FAIL — `Error: Error when reading 'lib/logic/safe_to_spend.dart': No such file or directory`.
+
+- [ ] **Step 3: Implement `safe_to_spend.dart`**
+
+Create `lib/logic/safe_to_spend.dart`:
+```dart
+import '../models/models.dart';
+import '../utils/date_utils.dart' as date_utils;
+
+double calculateSafeToSpend(List<Account> accounts, List<RecurringRule> recurringRules, {DateTime? now}) {
+  final effectiveNow = now ?? DateTime.now();
+  final totalBalance = accounts.fold<double>(0, (sum, a) => sum + a.balance);
+  final nextIncomeDate = date_utils.addMonths(effectiveNow, 1);
+  final upcomingBills = recurringRules
+      .where((r) => date_utils.isBefore(DateTime.parse(r.nextDueDate), nextIncomeDate))
+      .fold<double>(0, (sum, r) => sum + r.amount);
+  return totalBalance - upcomingBills;
+}
+```
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+Run: `flutter test test/logic/safe_to_spend_test.dart`
+Expected: PASS, 3 tests.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add lib/logic/safe_to_spend.dart test/logic/safe_to_spend_test.dart
+git commit -m "feat: add Safe to Spend calculation with tests"
+```
+
+---
+
+### Task 6: Calculation — Debt payoff projection, snowball & avalanche (TDD)
+
+**Files:**
+- Create: `lib/logic/debt_payoff.dart`
+- Test: `test/logic/debt_payoff_test.dart`
+
+**Interfaces:**
+- Consumes: `Debt` from `lib/models/models.dart`.
+- Produces: `class PayoffResult { final int months; final double totalInterest; }`; `class DebtPayoffProjection { final PayoffResult snowball; final PayoffResult avalanche; }`; `DebtPayoffProjection projectDebtPayoff(List<Debt> debts, double extraPayment)` — used by the Debt screen (Task 22).
+
+- [ ] **Step 1: Write the failing tests**
+
+Create `test/logic/debt_payoff_test.dart`:
+```dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:jm_finance_tracker/logic/debt_payoff.dart';
+import 'package:jm_finance_tracker/models/models.dart';
+
+Debt _debt({String id = 'd1', double balance = 1200, double interestRate = 0, double minPayment = 100}) => Debt(
+      id: id,
+      name: 'Card',
+      balance: balance,
+      interestRate: interestRate,
+      minPayment: minPayment,
+      dueDayOfMonth: 1,
+    );
+
+void main() {
+  group('projectDebtPayoff', () {
+    test('pays off a single zero-interest debt in balance/minPayment months', () {
+      final debts = [_debt(balance: 1200, minPayment: 100)];
+      final result = projectDebtPayoff(debts, 0);
+      expect(result.snowball.months, 12);
+      expect(result.snowball.totalInterest, 0);
+    });
+
+    test('avalanche never accrues more total interest than snowball for the same debts', () {
+      final debts = [
+        _debt(id: 'd1', balance: 500, interestRate: 5, minPayment: 50),
+        _debt(id: 'd2', balance: 3000, interestRate: 22, minPayment: 100),
+      ];
+      final result = projectDebtPayoff(debts, 200);
+      expect(result.avalanche.totalInterest <= result.snowball.totalInterest, true);
+    });
+
+    test('extra payments reduce months to debt-free', () {
+      final debts = [_debt(balance: 1200, minPayment: 100, interestRate: 0)];
+      final withoutExtra = projectDebtPayoff(debts, 0);
+      final withExtra = projectDebtPayoff(debts, 200);
+      expect(withExtra.snowball.months < withoutExtra.snowball.months, true);
+    });
+  });
+}
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run: `flutter test test/logic/debt_payoff_test.dart`
+Expected: FAIL — `Error: Error when reading 'lib/logic/debt_payoff.dart': No such file or directory`.
+
+- [ ] **Step 3: Implement `debt_payoff.dart`**
+
+Create `lib/logic/debt_payoff.dart`:
+```dart
+import '../models/models.dart';
+
+class PayoffResult {
+  final int months;
+  final double totalInterest;
+  PayoffResult({required this.months, required this.totalInterest});
+}
+
+class DebtPayoffProjection {
+  final PayoffResult snowball;
+  final PayoffResult avalanche;
+  DebtPayoffProjection({required this.snowball, required this.avalanche});
+}
+
+const _maxMonths = 600; // 50-year safety cap against infinite loops
+
+class _WorkingDebt {
+  double balance;
+  final double interestRate;
+  final double minPayment;
+  _WorkingDebt({required this.balance, required this.interestRate, required this.minPayment});
+}
+
+PayoffResult _simulate(List<Debt> debts, double extraPayment, bool isSnowball) {
+  final order = debts
+      .map((d) => _WorkingDebt(balance: d.balance, interestRate: d.interestRate, minPayment: d.minPayment))
+      .toList();
+  if (isSnowball) {
+    order.sort((a, b) => a.balance.compareTo(b.balance));
+  } else {
+    order.sort((a, b) => b.interestRate.compareTo(a.interestRate));
+  }
+
+  var months = 0;
+  var totalInterest = 0.0;
+
+  while (order.any((d) => d.balance > 0.01) && months < _maxMonths) {
+    months++;
+    for (final debt in order) {
+      if (debt.balance <= 0) continue;
+      final monthlyInterest = debt.balance * (debt.interestRate / 100 / 12);
+      totalInterest += monthlyInterest;
+      debt.balance += monthlyInterest;
+      debt.balance -= debt.balance < debt.minPayment ? debt.balance : debt.minPayment;
+    }
+    var remainingExtra = extraPayment;
+    for (final debt in order) {
+      if (remainingExtra <= 0) break;
+      if (debt.balance <= 0) continue;
+      final applied = debt.balance < remainingExtra ? debt.balance : remainingExtra;
+      debt.balance -= applied;
+      remainingExtra -= applied;
+    }
+  }
+
+  return PayoffResult(months: months, totalInterest: (totalInterest * 100).round() / 100);
+}
+
+DebtPayoffProjection projectDebtPayoff(List<Debt> debts, double extraPayment) {
+  return DebtPayoffProjection(
+    snowball: _simulate(debts, extraPayment, true),
+    avalanche: _simulate(debts, extraPayment, false),
+  );
+}
+```
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+Run: `flutter test test/logic/debt_payoff_test.dart`
+Expected: PASS, 3 tests.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add lib/logic/debt_payoff.dart test/logic/debt_payoff_test.dart
+git commit -m "feat: add debt payoff projection (snowball/avalanche) with tests"
+```
+
+---
+
+### Task 7: Calculation — Insights aggregation (TDD)
+
+**Files:**
+- Create: `lib/logic/insights.dart`
+- Test: `test/logic/insights_test.dart`
+
+**Interfaces:**
+- Consumes: `Transaction` from `lib/models/models.dart`.
+- Produces: `class CategoryTotal { final String categoryId; final double total; final double previousTotal; final double? percentChange; }`; `List<CategoryTotal> categoryTotals(List<Transaction> transactions, DateTime periodStart, DateTime periodEnd, DateTime previousPeriodStart, DateTime previousPeriodEnd)`; `class TrendBucket { final String label; final double income; final double spending; }`; `List<TrendBucket> incomeVsSpendingTrend(List<Transaction> transactions, String bucketBy, int numBuckets, DateTime end)`; `List<Transaction> topTransactions(List<Transaction> transactions, DateTime periodStart, DateTime periodEnd, {int n = 5})`. Used by the Insights screen (Task 20).
+
+- [ ] **Step 1: Write the failing tests**
+
+Create `test/logic/insights_test.dart`:
+```dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:jm_finance_tracker/logic/insights.dart';
+import 'package:jm_finance_tracker/models/models.dart';
+
+Transaction _tx({
+  String id = 'tx',
+  String categoryId = 'food',
+  double amount = -100,
+  String date = '2026-01-15T00:00:00.000Z',
+  String type = 'expense',
+}) =>
+    Transaction(id: id, accountId: 'a1', categoryId: categoryId, amount: amount, note: '', date: date, type: type);
+
+void main() {
+  group('categoryTotals', () {
+    test('sums current-period expenses by category and computes percent change', () {
+      final transactions = [
+        _tx(categoryId: 'food', amount: -100, date: '2026-01-15T00:00:00.000Z'),
+        _tx(categoryId: 'food', amount: -50, date: '2025-12-15T00:00:00.000Z'),
+      ];
+      final result = categoryTotals(
+        transactions,
+        DateTime.parse('2026-01-01T00:00:00.000Z'),
+        DateTime.parse('2026-02-01T00:00:00.000Z'),
+        DateTime.parse('2025-12-01T00:00:00.000Z'),
+        DateTime.parse('2026-01-01T00:00:00.000Z'),
+      );
+      expect(result[0].categoryId, 'food');
+      expect(result[0].total, 100);
+      expect(result[0].previousTotal, 50);
+      expect(result[0].percentChange, 100);
+    });
+  });
+
+  group('incomeVsSpendingTrend', () {
+    test('buckets income and spending by week', () {
+      final transactions = [
+        _tx(type: 'income', amount: 500, date: '2026-01-14T00:00:00.000Z'),
+        _tx(type: 'expense', amount: -200, date: '2026-01-14T00:00:00.000Z'),
+      ];
+      final buckets = incomeVsSpendingTrend(transactions, 'week', 2, DateTime.parse('2026-01-15T00:00:00.000Z'));
+      expect(buckets.length, 2);
+      expect(buckets[1].income, 500);
+      expect(buckets[1].spending, 200);
+    });
+  });
+
+  group('topTransactions', () {
+    test('returns the top N transactions by absolute amount within the period', () {
+      final transactions = [
+        _tx(amount: -50, date: '2026-01-05T00:00:00.000Z'),
+        _tx(amount: -900, date: '2026-01-10T00:00:00.000Z'),
+        _tx(amount: 300, date: '2026-01-12T00:00:00.000Z'),
+      ];
+      final top = topTransactions(
+        transactions,
+        DateTime.parse('2026-01-01T00:00:00.000Z'),
+        DateTime.parse('2026-02-01T00:00:00.000Z'),
+        n: 2,
+      );
+      expect(top.map((t) => t.amount).toList(), [-900, 300]);
+    });
+  });
+}
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run: `flutter test test/logic/insights_test.dart`
+Expected: FAIL — `Error: Error when reading 'lib/logic/insights.dart': No such file or directory`.
+
+- [ ] **Step 3: Implement `insights.dart`**
+
+Create `lib/logic/insights.dart`:
+```dart
+import '../models/models.dart';
+
+class CategoryTotal {
+  final String categoryId;
+  final double total;
+  final double previousTotal;
+  final double? percentChange;
+  CategoryTotal({required this.categoryId, required this.total, required this.previousTotal, this.percentChange});
+}
+
+class TrendBucket {
+  final String label;
+  final double income;
+  final double spending;
+  TrendBucket({required this.label, required this.income, required this.spending});
+}
+
+bool _inRange(Transaction t, DateTime start, DateTime end) {
+  final date = DateTime.parse(t.date);
+  return !date.isBefore(start) && date.isBefore(end);
+}
+
+Map<String, double> _sumByCategory(List<Transaction> list) {
+  final map = <String, double>{};
+  for (final t in list) {
+    map[t.categoryId] = (map[t.categoryId] ?? 0) + t.amount.abs();
+  }
+  return map;
+}
+
+List<CategoryTotal> categoryTotals(
+  List<Transaction> transactions,
+  DateTime periodStart,
+  DateTime periodEnd,
+  DateTime previousPeriodStart,
+  DateTime previousPeriodEnd,
+) {
+  final current = transactions.where((t) => _inRange(t, periodStart, periodEnd) && t.type == 'expense').toList();
+  final previous =
+      transactions.where((t) => _inRange(t, previousPeriodStart, previousPeriodEnd) && t.type == 'expense').toList();
+
+  final currentMap = _sumByCategory(current);
+  final previousMap = _sumByCategory(previous);
+  final categoryIds = {...currentMap.keys, ...previousMap.keys};
+
+  final results = categoryIds.map((categoryId) {
+    final total = currentMap[categoryId] ?? 0;
+    final previousTotal = previousMap[categoryId] ?? 0;
+    final percentChange = previousTotal == 0 ? null : ((total - previousTotal) / previousTotal * 1000).round() / 10;
+    return CategoryTotal(categoryId: categoryId, total: total, previousTotal: previousTotal, percentChange: percentChange);
+  }).toList();
+
+  results.sort((a, b) => b.total.compareTo(a.total));
+  return results;
+}
+
+List<TrendBucket> incomeVsSpendingTrend(
+  List<Transaction> transactions,
+  String bucketBy, // 'week' | 'month'
+  int numBuckets,
+  DateTime end,
+) {
+  final bucketDuration = bucketBy == 'week' ? const Duration(days: 7) : const Duration(days: 30);
+  final buckets = <TrendBucket>[];
+
+  for (var i = numBuckets - 1; i >= 0; i--) {
+    final bucketEnd = end.subtract(bucketDuration * i);
+    final bucketStart = bucketEnd.subtract(bucketDuration);
+    final inBucket = transactions.where((t) {
+      final date = DateTime.parse(t.date);
+      return !date.isBefore(bucketStart) && date.isBefore(bucketEnd);
+    });
+    final income = inBucket.where((t) => t.type == 'income').fold<double>(0, (s, t) => s + t.amount);
+    final spending = inBucket.where((t) => t.type == 'expense').fold<double>(0, (s, t) => s + t.amount.abs());
+    buckets.add(TrendBucket(
+      label:
+          '${bucketStart.year.toString().padLeft(4, '0')}-${bucketStart.month.toString().padLeft(2, '0')}-${bucketStart.day.toString().padLeft(2, '0')}',
+      income: income,
+      spending: spending,
+    ));
+  }
+  return buckets;
+}
+
+List<Transaction> topTransactions(List<Transaction> transactions, DateTime periodStart, DateTime periodEnd, {int n = 5}) {
+  final inPeriod = transactions.where((t) => _inRange(t, periodStart, periodEnd)).toList();
+  inPeriod.sort((a, b) => b.amount.abs().compareTo(a.amount.abs()));
+  return inPeriod.take(n).toList();
+}
+```
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+Run: `flutter test test/logic/insights_test.dart`
+Expected: PASS, 3 tests.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add lib/logic/insights.dart test/logic/insights_test.dart
+git commit -m "feat: add insights aggregation (category totals, trend, top transactions) with tests"
+```
