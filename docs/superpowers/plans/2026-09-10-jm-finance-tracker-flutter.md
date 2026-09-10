@@ -1134,3 +1134,551 @@ Expected: PASS, 3 tests.
 git add lib/logic/insights.dart test/logic/insights_test.dart
 git commit -m "feat: add insights aggregation (category totals, trend, top transactions) with tests"
 ```
+
+---
+
+### Task 8: Persistence wrapper + `ChangeNotifier` stores for all domain entities
+
+**Files:**
+- Create: `lib/stores/error_banner_store.dart`, `lib/utils/persistence.dart`
+- Create: `lib/stores/settings_store.dart`, `lib/stores/accounts_store.dart`, `lib/stores/categories_store.dart`, `lib/stores/transactions_store.dart`, `lib/stores/recurring_store.dart`, `lib/stores/goals_store.dart`, `lib/stores/debts_store.dart`
+
+**Interfaces:**
+- Consumes: `generateId` from `lib/utils/id.dart`; `nextOccurrence` from `lib/utils/date_utils.dart`; all model classes from `lib/models/models.dart`.
+- Produces: `ErrorBannerStore` (`message`, `show(String)`, `hide()`), and `SettingsStore`, `AccountsStore`, `CategoriesStore`, `TransactionsStore`, `RecurringStore`, `GoalsStore`, `DebtsStore` — each a `ChangeNotifier` constructed with an `ErrorBannerStore`, exposing a `hasHydrated` getter, a `Future<void> hydrate()` method, and CRUD methods. Every screen from Task 14 onward reads from these via `provider`; Task 9's `TransactionActions` calls their methods directly.
+
+- [ ] **Step 1: Create the error banner store (not persisted)**
+
+Create `lib/stores/error_banner_store.dart`:
+```dart
+import 'package:flutter/foundation.dart';
+
+class ErrorBannerStore extends ChangeNotifier {
+  String? _message;
+  String? get message => _message;
+
+  void show(String message) {
+    _message = message;
+    notifyListeners();
+  }
+
+  void hide() {
+    _message = null;
+    notifyListeners();
+  }
+}
+```
+
+- [ ] **Step 2: Create the `shared_preferences` wrapper that surfaces failures via the error banner**
+
+Create `lib/utils/persistence.dart`:
+```dart
+import 'package:shared_preferences/shared_preferences.dart';
+import '../stores/error_banner_store.dart';
+
+Future<String?> loadJson(String key, ErrorBannerStore errorBanner) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(key);
+  } catch (_) {
+    errorBanner.show("Couldn't load — try again");
+    return null;
+  }
+}
+
+Future<void> saveJson(String key, String value, ErrorBannerStore errorBanner) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(key, value);
+  } catch (_) {
+    errorBanner.show("Couldn't save — try again");
+  }
+}
+```
+
+- [ ] **Step 3: Create `settings_store.dart`**
+
+Create `lib/stores/settings_store.dart`:
+```dart
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import '../models/models.dart';
+import '../utils/persistence.dart';
+import 'error_banner_store.dart';
+
+class SettingsStore extends ChangeNotifier {
+  static const _key = 'settings-store';
+  final ErrorBannerStore errorBanner;
+
+  SettingsStore(this.errorBanner);
+
+  UserSettings _settings = UserSettings();
+  bool _hasHydrated = false;
+
+  UserSettings get settings => _settings;
+  bool get hasHydrated => _hasHydrated;
+  bool get hasCompletedOnboarding => _settings.hasCompletedOnboarding;
+  double get monthlyIncomeEstimate => _settings.monthlyIncomeEstimate;
+
+  Future<void> hydrate() async {
+    final raw = await loadJson(_key, errorBanner);
+    if (raw != null) {
+      _settings = UserSettings.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    }
+    _hasHydrated = true;
+    notifyListeners();
+  }
+
+  Future<void> _persist() => saveJson(_key, jsonEncode(_settings.toJson()), errorBanner);
+
+  void setHasCompletedOnboarding(bool value) {
+    _settings = _settings.copyWith(hasCompletedOnboarding: value);
+    notifyListeners();
+    _persist();
+  }
+
+  void setMonthlyIncomeEstimate(double value) {
+    _settings = _settings.copyWith(monthlyIncomeEstimate: value);
+    notifyListeners();
+    _persist();
+  }
+}
+```
+
+- [ ] **Step 4: Create `accounts_store.dart`**
+
+Create `lib/stores/accounts_store.dart`:
+```dart
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import '../models/models.dart';
+import '../utils/id.dart';
+import '../utils/persistence.dart';
+import 'error_banner_store.dart';
+
+class AccountsStore extends ChangeNotifier {
+  static const _key = 'accounts-store';
+  final ErrorBannerStore errorBanner;
+
+  AccountsStore(this.errorBanner);
+
+  List<Account> _accounts = [];
+  bool _hasHydrated = false;
+
+  List<Account> get accounts => List.unmodifiable(_accounts);
+  bool get hasHydrated => _hasHydrated;
+
+  Future<void> hydrate() async {
+    final raw = await loadJson(_key, errorBanner);
+    if (raw != null) {
+      final list = jsonDecode(raw) as List<dynamic>;
+      _accounts = list.map((e) => Account.fromJson(e as Map<String, dynamic>)).toList();
+    }
+    _hasHydrated = true;
+    notifyListeners();
+  }
+
+  Future<void> _persist() => saveJson(_key, jsonEncode(_accounts.map((a) => a.toJson()).toList()), errorBanner);
+
+  String addAccount({required String name, required String type, required double balance}) {
+    final id = generateId();
+    final account = Account(id: id, name: name, type: type, balance: balance, createdAt: DateTime.now().toIso8601String());
+    _accounts = [..._accounts, account];
+    notifyListeners();
+    _persist();
+    return id;
+  }
+
+  void updateAccount(String id, {String? name, String? type, double? balance}) {
+    _accounts = _accounts.map((a) => a.id == id ? a.copyWith(name: name, type: type, balance: balance) : a).toList();
+    notifyListeners();
+    _persist();
+  }
+
+  void removeAccount(String id) {
+    _accounts = _accounts.where((a) => a.id != id).toList();
+    notifyListeners();
+    _persist();
+  }
+}
+```
+
+- [ ] **Step 5: Create `categories_store.dart` with seeded presets**
+
+Create `lib/stores/categories_store.dart`:
+```dart
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import '../models/models.dart';
+import '../utils/id.dart';
+import '../utils/persistence.dart';
+import 'error_banner_store.dart';
+
+final List<Category> presetCategories = [
+  Category(id: 'preset-food', name: 'Food', icon: 'utensils', isCustom: false, isIncome: false),
+  Category(id: 'preset-transport', name: 'Transport', icon: 'car', isCustom: false, isIncome: false),
+  Category(id: 'preset-bills', name: 'Bills & Utilities', icon: 'receipt', isCustom: false, isIncome: false),
+  Category(id: 'preset-shopping', name: 'Shopping', icon: 'shopping-bag', isCustom: false, isIncome: false),
+  Category(id: 'preset-entertainment', name: 'Entertainment', icon: 'film', isCustom: false, isIncome: false),
+  Category(id: 'preset-health', name: 'Health', icon: 'heart-pulse', isCustom: false, isIncome: false),
+  Category(id: 'preset-housing', name: 'Housing', icon: 'home', isCustom: false, isIncome: false),
+  Category(id: 'preset-income', name: 'Income', icon: 'wallet', isCustom: false, isIncome: true),
+  Category(id: 'preset-transfer', name: 'Transfer', icon: 'arrow-left-right', isCustom: false, isIncome: false),
+  Category(id: 'preset-other', name: 'Other', icon: 'more-horizontal', isCustom: false, isIncome: false),
+];
+
+class CategoriesStore extends ChangeNotifier {
+  static const _key = 'categories-store';
+  final ErrorBannerStore errorBanner;
+
+  CategoriesStore(this.errorBanner);
+
+  List<Category> _categories = presetCategories;
+  bool _hasHydrated = false;
+
+  List<Category> get categories => List.unmodifiable(_categories);
+  bool get hasHydrated => _hasHydrated;
+
+  Future<void> hydrate() async {
+    final raw = await loadJson(_key, errorBanner);
+    if (raw != null) {
+      final list = jsonDecode(raw) as List<dynamic>;
+      _categories = list.map((e) => Category.fromJson(e as Map<String, dynamic>)).toList();
+    }
+    _hasHydrated = true;
+    notifyListeners();
+  }
+
+  Future<void> _persist() => saveJson(_key, jsonEncode(_categories.map((c) => c.toJson()).toList()), errorBanner);
+
+  void addCategory(String name, String icon, bool isIncome) {
+    final category = Category(id: generateId(), name: name, icon: icon, isCustom: true, isIncome: isIncome);
+    _categories = [..._categories, category];
+    notifyListeners();
+    _persist();
+  }
+
+  void removeCategory(String id) {
+    _categories = _categories.where((c) => c.id != id).toList();
+    notifyListeners();
+    _persist();
+  }
+}
+```
+
+- [ ] **Step 6: Create `transactions_store.dart`**
+
+Create `lib/stores/transactions_store.dart`:
+```dart
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import '../models/models.dart';
+import '../utils/id.dart';
+import '../utils/persistence.dart';
+import 'error_banner_store.dart';
+
+class TransactionsStore extends ChangeNotifier {
+  static const _key = 'transactions-store';
+  final ErrorBannerStore errorBanner;
+
+  TransactionsStore(this.errorBanner);
+
+  List<Transaction> _transactions = [];
+  bool _hasHydrated = false;
+
+  List<Transaction> get transactions => List.unmodifiable(_transactions);
+  bool get hasHydrated => _hasHydrated;
+
+  Future<void> hydrate() async {
+    final raw = await loadJson(_key, errorBanner);
+    if (raw != null) {
+      final list = jsonDecode(raw) as List<dynamic>;
+      _transactions = list.map((e) => Transaction.fromJson(e as Map<String, dynamic>)).toList();
+    }
+    _hasHydrated = true;
+    notifyListeners();
+  }
+
+  Future<void> _persist() => saveJson(_key, jsonEncode(_transactions.map((t) => t.toJson()).toList()), errorBanner);
+
+  String addTransaction({
+    required String accountId,
+    required String categoryId,
+    required double amount,
+    required String note,
+    required String date,
+    required String type,
+    String? recurringRuleId,
+    String? goalId,
+  }) {
+    final id = generateId();
+    final transaction = Transaction(
+      id: id,
+      accountId: accountId,
+      categoryId: categoryId,
+      amount: amount,
+      note: note,
+      date: date,
+      type: type,
+      recurringRuleId: recurringRuleId,
+      goalId: goalId,
+    );
+    _transactions = [..._transactions, transaction];
+    notifyListeners();
+    _persist();
+    return id;
+  }
+
+  void updateTransaction(
+    String id, {
+    String? accountId,
+    String? categoryId,
+    double? amount,
+    String? note,
+    String? date,
+    String? type,
+    String? goalId,
+  }) {
+    _transactions = _transactions
+        .map((t) => t.id == id
+            ? t.copyWith(accountId: accountId, categoryId: categoryId, amount: amount, note: note, date: date, type: type, goalId: goalId)
+            : t)
+        .toList();
+    notifyListeners();
+    _persist();
+  }
+
+  void removeTransaction(String id) {
+    _transactions = _transactions.where((t) => t.id != id).toList();
+    notifyListeners();
+    _persist();
+  }
+}
+```
+
+- [ ] **Step 7: Create `recurring_store.dart`**
+
+Create `lib/stores/recurring_store.dart`:
+```dart
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import '../models/models.dart';
+import '../utils/id.dart';
+import '../utils/date_utils.dart' as date_utils;
+import '../utils/persistence.dart';
+import 'error_banner_store.dart';
+
+class RecurringStore extends ChangeNotifier {
+  static const _key = 'recurring-store';
+  final ErrorBannerStore errorBanner;
+
+  RecurringStore(this.errorBanner);
+
+  List<RecurringRule> _rules = [];
+  bool _hasHydrated = false;
+
+  List<RecurringRule> get rules => List.unmodifiable(_rules);
+  bool get hasHydrated => _hasHydrated;
+
+  Future<void> hydrate() async {
+    final raw = await loadJson(_key, errorBanner);
+    if (raw != null) {
+      final list = jsonDecode(raw) as List<dynamic>;
+      _rules = list.map((e) => RecurringRule.fromJson(e as Map<String, dynamic>)).toList();
+    }
+    _hasHydrated = true;
+    notifyListeners();
+  }
+
+  Future<void> _persist() => saveJson(_key, jsonEncode(_rules.map((r) => r.toJson()).toList()), errorBanner);
+
+  String addRule({
+    required String name,
+    required String categoryId,
+    required String accountId,
+    required double amount,
+    required String frequency,
+    required String nextDueDate,
+  }) {
+    final id = generateId();
+    final rule = RecurringRule(
+      id: id,
+      name: name,
+      categoryId: categoryId,
+      accountId: accountId,
+      amount: amount,
+      frequency: frequency,
+      nextDueDate: nextDueDate,
+    );
+    _rules = [..._rules, rule];
+    notifyListeners();
+    _persist();
+    return id;
+  }
+
+  void updateRule(String id, {String? name, double? amount, String? frequency, String? nextDueDate}) {
+    _rules = _rules.map((r) => r.id == id ? r.copyWith(name: name, amount: amount, frequency: frequency, nextDueDate: nextDueDate) : r).toList();
+    notifyListeners();
+    _persist();
+  }
+
+  void removeRule(String id) {
+    _rules = _rules.where((r) => r.id != id).toList();
+    notifyListeners();
+    _persist();
+  }
+
+  void advanceNextDueDate(String id) {
+    RecurringRule? rule;
+    for (final r in _rules) {
+      if (r.id == id) {
+        rule = r;
+        break;
+      }
+    }
+    if (rule == null) return;
+    final next = date_utils.nextOccurrence(DateTime.parse(rule.nextDueDate), rule.frequency);
+    updateRule(id, nextDueDate: next.toIso8601String());
+  }
+}
+```
+
+- [ ] **Step 8: Create `goals_store.dart`**
+
+Create `lib/stores/goals_store.dart`:
+```dart
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import '../models/models.dart';
+import '../utils/id.dart';
+import '../utils/persistence.dart';
+import 'error_banner_store.dart';
+
+class GoalsStore extends ChangeNotifier {
+  static const _key = 'goals-store';
+  final ErrorBannerStore errorBanner;
+
+  GoalsStore(this.errorBanner);
+
+  List<Goal> _goals = [];
+  bool _hasHydrated = false;
+
+  List<Goal> get goals => List.unmodifiable(_goals);
+  bool get hasHydrated => _hasHydrated;
+
+  Future<void> hydrate() async {
+    final raw = await loadJson(_key, errorBanner);
+    if (raw != null) {
+      final list = jsonDecode(raw) as List<dynamic>;
+      _goals = list.map((e) => Goal.fromJson(e as Map<String, dynamic>)).toList();
+    }
+    _hasHydrated = true;
+    notifyListeners();
+  }
+
+  Future<void> _persist() => saveJson(_key, jsonEncode(_goals.map((g) => g.toJson()).toList()), errorBanner);
+
+  String addGoal({required String name, required String icon, required double targetAmount, String? targetDate}) {
+    final id = generateId();
+    final goal = Goal(id: id, name: name, icon: icon, targetAmount: targetAmount, currentAmount: 0, targetDate: targetDate);
+    _goals = [..._goals, goal];
+    notifyListeners();
+    _persist();
+    return id;
+  }
+
+  void updateGoal(String id, {String? name, double? targetAmount}) {
+    _goals = _goals.map((g) => g.id == id ? g.copyWith(name: name, targetAmount: targetAmount) : g).toList();
+    notifyListeners();
+    _persist();
+  }
+
+  void removeGoal(String id) {
+    _goals = _goals.where((g) => g.id != id).toList();
+    notifyListeners();
+    _persist();
+  }
+
+  void incrementCurrentAmount(String id, double amount) {
+    _goals = _goals.map((g) => g.id == id ? g.copyWith(currentAmount: g.currentAmount + amount) : g).toList();
+    notifyListeners();
+    _persist();
+  }
+}
+```
+
+- [ ] **Step 9: Create `debts_store.dart`**
+
+Create `lib/stores/debts_store.dart`:
+```dart
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import '../models/models.dart';
+import '../utils/id.dart';
+import '../utils/persistence.dart';
+import 'error_banner_store.dart';
+
+class DebtsStore extends ChangeNotifier {
+  static const _key = 'debts-store';
+  final ErrorBannerStore errorBanner;
+
+  DebtsStore(this.errorBanner);
+
+  List<Debt> _debts = [];
+  bool _hasHydrated = false;
+
+  List<Debt> get debts => List.unmodifiable(_debts);
+  bool get hasHydrated => _hasHydrated;
+
+  Future<void> hydrate() async {
+    final raw = await loadJson(_key, errorBanner);
+    if (raw != null) {
+      final list = jsonDecode(raw) as List<dynamic>;
+      _debts = list.map((e) => Debt.fromJson(e as Map<String, dynamic>)).toList();
+    }
+    _hasHydrated = true;
+    notifyListeners();
+  }
+
+  Future<void> _persist() => saveJson(_key, jsonEncode(_debts.map((d) => d.toJson()).toList()), errorBanner);
+
+  String addDebt({
+    required String name,
+    required double balance,
+    required double interestRate,
+    required double minPayment,
+    required int dueDayOfMonth,
+  }) {
+    final id = generateId();
+    final debt = Debt(id: id, name: name, balance: balance, interestRate: interestRate, minPayment: minPayment, dueDayOfMonth: dueDayOfMonth);
+    _debts = [..._debts, debt];
+    notifyListeners();
+    _persist();
+    return id;
+  }
+
+  void updateDebt(String id, {String? name, double? balance, double? interestRate, double? minPayment}) {
+    _debts = _debts.map((d) => d.id == id ? d.copyWith(name: name, balance: balance, interestRate: interestRate, minPayment: minPayment) : d).toList();
+    notifyListeners();
+    _persist();
+  }
+
+  void removeDebt(String id) {
+    _debts = _debts.where((d) => d.id != id).toList();
+    notifyListeners();
+    _persist();
+  }
+}
+```
+
+- [ ] **Step 10: Verify everything compiles**
+
+Run: `flutter analyze lib/stores lib/utils/persistence.dart`
+Expected: `No issues found!`
+
+- [ ] **Step 11: Commit**
+
+```bash
+git add lib/stores lib/utils/persistence.dart
+git commit -m "feat: add ChangeNotifier stores for all domain entities with shared_preferences persistence"
+```
