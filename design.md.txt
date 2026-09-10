@@ -1,0 +1,89 @@
+# Financial Tracking App — Design Specification
+
+Reference files: `Home - Design System.dc.html`, `App Screens.dc.html` (9 screens).
+
+## 1. Visual direction
+
+Dark, premium, data-forward. Near-black ground with a single neon-lime accent (inspired by the "Runly" sport-brand reference). Structure — grid rhythm, strong dividers, flush-left labels — borrowed from the "Modernist" design system, but reskinned: **rounded corners, not sharp** (per user direction: curves feel better and pop more than square edges).
+
+## 2. Color tokens
+
+| Token | Value | Use |
+|---|---|---|
+| `--bg` | `#101110` | App background |
+| `--surface` | `#1B1D18` | Elevated/hero card fill (safe-to-spend, insight callouts) |
+| `--surface-muted` | `rgba(255,255,255,0.06)` | Icon chips, subtle fills |
+| `--text` | `#F4F5F0` | Primary text |
+| `--text-secondary` | `#C7C9C2` | Secondary body text |
+| `--text-muted` | `#8B8D86` | Captions, eyebrow labels, inactive icons |
+| `--accent` | `#CFFF3B` | Primary accent — positive values, active states, primary CTAs, progress fills |
+| `--accent-ink` | `#101110` | Text/icon color on top of accent fill |
+| `--warning` | `#FFB020` | Attention alerts (never used alone — always paired with an icon + text label like "Attention —") |
+| `--border` | `rgba(255,255,255,0.12)` | Card borders |
+| `--border-strong` | `rgba(255,255,255,0.14)` | Section dividers |
+| `--border-hairline` | `rgba(255,255,255,0.08)` | Row separators inside a card/list |
+
+Rules:
+- Accent is used sparingly: one hero number, primary CTA, active nav/tab state, progress bars, positive (income) amounts. Never more than one accent color.
+- Never encode status by color alone — alerts always carry a text prefix ("Attention —", "On track —") and an icon.
+- Spending categories are **not** color-coded. Every category uses the same neutral icon treatment (icon in `--text-secondary` on a `--surface-muted` chip). Distinction comes from icon + label, not hue.
+
+## 3. Typography
+
+Font: **Archivo** (Google Fonts), weights 400/600/700/800. One family for both heading and body.
+
+| Role | Size / line-height | Weight | Notes |
+|---|---|---|---|
+| Hero figure (Safe to Spend) | 60px / 1 | 800 | `letter-spacing: -0.02em` |
+| Section stat figure | 22px / 1.1 | 800 | Income/Spending/Upcoming, debt totals |
+| Card title | 24px / 1.2 | 700 | Screen titles |
+| Sub-header | 20–22px / 1.2 | 700 | "Cash flow", goal names |
+| Body | 13–15px / 1.3–1.5 | 400–600 | List rows, insight copy |
+| Caption / eyebrow | 9–11px / 1.2 | 600, uppercase, `letter-spacing: .08–.14em` | Section labels ("SAFE TO SPEND", "TODAY") |
+| Transaction/amount figures | 15–17px | 800 | Always tabular |
+
+All numeric financial values use `font-feature-settings: 'tnum' 1` so digits align in columns. Currency always shown with `$`; negative amounts use a minus glyph and plain text color (not red) — expenses aren't inherently negative/bad. Income is the only value shown in accent lime with a `+` prefix.
+
+## 4. Spacing scale
+
+`4, 8, 10, 12, 14, 16, 20, 24, 32` px. Section blocks are separated by a full-width 2px `--border-strong` rule (borrowed "strong divider" convention) with 20px margin above/below. Card internal padding is 16px; hero cards 20px.
+
+## 5. Radius scale
+
+Rounded, not sharp (confirmed direction).
+
+| Token | Value | Use |
+|---|---|---|
+| `--radius-sm` | 10–12px | Icon chips, small badges, inputs |
+| `--radius-md` | 14px | List rows, form fields, chips, alerts |
+| `--radius-lg` | 18–20px | Cards (goals, insights, debt, hero) |
+| `--radius-pill` | 999px | Filter chips, segmented control, toggle switches |
+
+## 6. Iconography
+
+[Lucide icons](https://lucide.dev), stroke-based, 14–24px depending on context. Always neutral-colored (`--text-muted` or `--text`) except when signaling the active/accent state (e.g. active nav tab, accent-toned insight icon).
+
+## 7. Components
+
+- **Card**: `border: 1px solid var(--border)`, `border-radius: var(--radius-lg)`, 16px padding. Emphasis variant swaps the border for a 2px accent top rule + `--surface` fill (hero, insight-of-the-day, debt scenario).
+- **List row**: 34px icon chip (`--radius-sm`, `--surface-muted` bg) + title/caption stack + right-aligned bold tabular amount. Hairline divider between rows, none on the last.
+- **Grouped list**: rows inside one bordered `--radius-lg` container, hairline dividers between, chevron-right trailing.
+- **Buttons**: primary = accent fill, `--radius-md`, bold ink-colored label. Small "quick action" buttons: icon + flush-left label in a 2-column divided grid (no individual borders). Filter/segment controls: pill-radius, active = accent fill with `--accent-ink` text.
+- **Progress bar**: 6px track, `--radius-pill`/`3px` corner, `--surface-muted` background, accent fill.
+- **Toggle**: 40×24px pill track, 20px thumb; off = muted, on = accent (not built in current screens' "off" example — flip fill+thumb position for on state).
+- **Alerts**: bordered `--radius-md` strip, icon + text; warning variant uses `rgba(255,176,32,0.4)` border + `#FFB020` icon, default variant uses `--border` + accent check icon. Never rely on background color alone.
+- **Bottom nav**: 5 items (Home, Transactions, Insights, Goals, More), icon + 9.5px uppercase label, active = accent, inactive = muted.
+
+## 8. Layout / platform
+
+- Screens built at iOS device-frame scale (402×874) as the primary reference; content uses flexible padding (20px horizontal) so it reflows for larger phones. Tablet layout not yet designed — next step if needed.
+- Status bar clearance: 58px top padding on full-bleed screens.
+- Scrollable content area + fixed bottom nav (nav screens) or fixed header/footer (modals, forms).
+
+## 9. Screens delivered
+
+Home, Transactions (list), Add Transaction (form), Cash Flow (timeline), Insights, Goals, Debt, More (settings hub), Onboarding (goal-selection step). See `App Screens.dc.html`.
+
+## 10. Not yet designed
+
+Transaction detail/edit, account management, recurring-transaction detection flow, notifications list, financial-health detail screen, tablet/desktop layouts, empty/error/loading states, full onboarding flow (accounts → income → recurring → goals steps).
