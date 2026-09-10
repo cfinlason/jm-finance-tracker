@@ -1682,3 +1682,252 @@ Expected: `No issues found!`
 git add lib/stores lib/utils/persistence.dart
 git commit -m "feat: add ChangeNotifier stores for all domain entities with shared_preferences persistence"
 ```
+
+---
+
+### Task 9: Transaction actions — cross-store orchestration (TDD)
+
+**Files:**
+- Create: `lib/logic/transaction_actions.dart`
+- Test: `test/logic/transaction_actions_test.dart`
+
+**Interfaces:**
+- Consumes: `AccountsStore`, `TransactionsStore`, `GoalsStore` from Task 8; `Transaction` from `lib/models/models.dart`.
+- Produces: `class TransactionActions` constructed with `{required AccountsStore accountsStore, required TransactionsStore transactionsStore, required GoalsStore goalsStore}`, exposing `String createTransaction({...})`, `void editTransaction(String id, {...})`, `void deleteTransaction(String id)` — the **only** way screens should create/edit/delete transactions (Tasks 17, 19, 21), since these methods keep account balances and goal progress in sync.
+
+- [ ] **Step 1: Write the failing tests**
+
+Create `test/logic/transaction_actions_test.dart`:
+```dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:jm_finance_tracker/logic/transaction_actions.dart';
+import 'package:jm_finance_tracker/stores/accounts_store.dart';
+import 'package:jm_finance_tracker/stores/transactions_store.dart';
+import 'package:jm_finance_tracker/stores/goals_store.dart';
+import 'package:jm_finance_tracker/stores/error_banner_store.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  late ErrorBannerStore errorBanner;
+  late AccountsStore accountsStore;
+  late TransactionsStore transactionsStore;
+  late GoalsStore goalsStore;
+  late TransactionActions actions;
+  late String accountId;
+  late String goalId;
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    errorBanner = ErrorBannerStore();
+    accountsStore = AccountsStore(errorBanner);
+    transactionsStore = TransactionsStore(errorBanner);
+    goalsStore = GoalsStore(errorBanner);
+    actions = TransactionActions(accountsStore: accountsStore, transactionsStore: transactionsStore, goalsStore: goalsStore);
+
+    accountId = accountsStore.addAccount(name: 'Checking', type: 'checking', balance: 1000);
+    goalId = goalsStore.addGoal(name: 'Fund', icon: 'target', targetAmount: 1000);
+  });
+
+  group('createTransaction', () {
+    test('adjusts the account balance by the transaction amount', () {
+      actions.createTransaction(
+        accountId: accountId,
+        categoryId: 'c1',
+        amount: -100,
+        note: '',
+        date: '2026-01-02T00:00:00.000Z',
+        type: 'expense',
+      );
+      expect(accountsStore.accounts[0].balance, 900);
+    });
+
+    test('increments the goal current amount for a goal_contribution', () {
+      actions.createTransaction(
+        accountId: accountId,
+        categoryId: 'c1',
+        amount: -100,
+        note: '',
+        date: '2026-01-02T00:00:00.000Z',
+        type: 'goal_contribution',
+        goalId: goalId,
+      );
+      expect(goalsStore.goals[0].currentAmount, 100);
+    });
+  });
+
+  group('deleteTransaction', () {
+    test('reverses the account balance effect and removes the transaction', () {
+      final id = actions.createTransaction(
+        accountId: accountId,
+        categoryId: 'c1',
+        amount: -100,
+        note: '',
+        date: '2026-01-02T00:00:00.000Z',
+        type: 'expense',
+      );
+      actions.deleteTransaction(id);
+      expect(accountsStore.accounts[0].balance, 1000);
+      expect(transactionsStore.transactions.length, 0);
+    });
+  });
+
+  group('editTransaction', () {
+    test('reverses the old amount and applies the new one', () {
+      final id = actions.createTransaction(
+        accountId: accountId,
+        categoryId: 'c1',
+        amount: -100,
+        note: '',
+        date: '2026-01-02T00:00:00.000Z',
+        type: 'expense',
+      );
+      actions.editTransaction(id, amount: -300);
+      expect(accountsStore.accounts[0].balance, 700);
+    });
+  });
+}
+```
+`TestWidgetsFlutterBinding.ensureInitialized()` plus `SharedPreferences.setMockInitialValues({})` are required here (unlike Tasks 4–7's tests) because these stores call through to `shared_preferences` on every mutation — without the mock, the first `SharedPreferences.getInstance()` call throws `MissingPluginException`. That exception is already caught inside `saveJson`/`loadJson` (Task 8, Step 2), so tests would still pass even without this setup, but output would carry stray plugin-exception noise — the mock keeps output pristine.
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run: `flutter test test/logic/transaction_actions_test.dart`
+Expected: FAIL — `Error: Error when reading 'lib/logic/transaction_actions.dart': No such file or directory`.
+
+- [ ] **Step 3: Implement `transaction_actions.dart`**
+
+Create `lib/logic/transaction_actions.dart`:
+```dart
+import '../models/models.dart';
+import '../stores/accounts_store.dart';
+import '../stores/transactions_store.dart';
+import '../stores/goals_store.dart';
+
+class TransactionActions {
+  final AccountsStore accountsStore;
+  final TransactionsStore transactionsStore;
+  final GoalsStore goalsStore;
+
+  TransactionActions({required this.accountsStore, required this.transactionsStore, required this.goalsStore});
+
+  void _applyToAccount(String accountId, double delta) {
+    Account? account;
+    for (final a in accountsStore.accounts) {
+      if (a.id == accountId) {
+        account = a;
+        break;
+      }
+    }
+    if (account == null) return;
+    accountsStore.updateAccount(accountId, balance: account.balance + delta);
+  }
+
+  void _applyToGoal({required String type, String? goalId, required double amount, required int sign}) {
+    if (type == 'goal_contribution' && goalId != null) {
+      goalsStore.incrementCurrentAmount(goalId, sign * amount.abs());
+    }
+  }
+
+  String createTransaction({
+    required String accountId,
+    required String categoryId,
+    required double amount,
+    required String note,
+    required String date,
+    required String type,
+    String? goalId,
+  }) {
+    final id = transactionsStore.addTransaction(
+      accountId: accountId,
+      categoryId: categoryId,
+      amount: amount,
+      note: note,
+      date: date,
+      type: type,
+      goalId: goalId,
+    );
+    _applyToAccount(accountId, amount);
+    _applyToGoal(type: type, goalId: goalId, amount: amount, sign: 1);
+    return id;
+  }
+
+  void deleteTransaction(String id) {
+    Transaction? tx;
+    for (final t in transactionsStore.transactions) {
+      if (t.id == id) {
+        tx = t;
+        break;
+      }
+    }
+    if (tx == null) return;
+    _applyToAccount(tx.accountId, -tx.amount);
+    _applyToGoal(type: tx.type, goalId: tx.goalId, amount: tx.amount, sign: -1);
+    transactionsStore.removeTransaction(id);
+  }
+
+  void editTransaction(
+    String id, {
+    String? accountId,
+    String? categoryId,
+    double? amount,
+    String? note,
+    String? date,
+    String? type,
+    String? goalId,
+  }) {
+    Transaction? original;
+    for (final t in transactionsStore.transactions) {
+      if (t.id == id) {
+        original = t;
+        break;
+      }
+    }
+    if (original == null) return;
+
+    _applyToAccount(original.accountId, -original.amount);
+    _applyToGoal(type: original.type, goalId: original.goalId, amount: original.amount, sign: -1);
+
+    final merged = original.copyWith(
+      accountId: accountId,
+      categoryId: categoryId,
+      amount: amount,
+      note: note,
+      date: date,
+      type: type,
+      goalId: goalId,
+    );
+    _applyToAccount(merged.accountId, merged.amount);
+    _applyToGoal(type: merged.type, goalId: merged.goalId, amount: merged.amount, sign: 1);
+
+    transactionsStore.updateTransaction(
+      id,
+      accountId: accountId,
+      categoryId: categoryId,
+      amount: amount,
+      note: note,
+      date: date,
+      type: type,
+      goalId: goalId,
+    );
+  }
+}
+```
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+Run: `flutter test test/logic/transaction_actions_test.dart`
+Expected: PASS, 4 tests, no stray plugin-exception output.
+
+- [ ] **Step 5: Run the full test suite so far**
+
+Run: `flutter test`
+Expected: PASS, all suites from Tasks 4–9 (money, date_utils, safe_to_spend, debt_payoff, insights, transaction_actions).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add lib/logic/transaction_actions.dart test/logic/transaction_actions_test.dart
+git commit -m "feat: add transaction actions that keep account balances and goal progress in sync"
+```
