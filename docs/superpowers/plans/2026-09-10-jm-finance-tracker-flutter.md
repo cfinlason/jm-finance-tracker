@@ -4964,3 +4964,287 @@ Expected: no errors.
 git add lib/screens/cash_flow_screen.dart lib/app_router.dart
 git commit -m "feat: build Cash Flow screen with upcoming bills timeline"
 ```
+
+---
+
+### Task 24: More screen + Account management
+
+**Files:**
+- Modify: `lib/screens/more_screen.dart` (replace Task 13's stub)
+- Create: `lib/screens/accounts_management_screen.dart`, `lib/screens/account_edit_screen.dart`
+- Modify: `lib/app_router.dart` (register both new routes)
+
+**Interfaces:**
+- Consumes: `AccountsStore` (Task 8); `AppScreen`, `AppCard`, `ListRow`, `EmptyState`, `IconChip`, `AppFormField`, `AppButton`, `AppSegmentedControl` (Tasks 10–12); `formatMoney` (Task 4, via `ListRow`).
+- Produces: the More tab (settings hub) linking to `/accounts`, `/categories` (Task 25), `/recurring` (Task 25), `/notifications` (Task 26); and full Account CRUD at `/accounts` and `/accounts/:id`.
+
+- [ ] **Step 1: Replace the More screen**
+
+Overwrite `lib/screens/more_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import '../theme/app_theme.dart';
+import '../widgets/app_screen.dart';
+import '../widgets/app_card.dart';
+import '../widgets/list_row.dart';
+
+class _MoreItem {
+  final String label;
+  final IconData icon;
+  final String route;
+  const _MoreItem({required this.label, required this.icon, required this.route});
+}
+
+const _items = [
+  _MoreItem(label: 'Accounts', icon: LucideIcons.wallet, route: '/accounts'),
+  _MoreItem(label: 'Categories', icon: LucideIcons.tag, route: '/categories'),
+  _MoreItem(label: 'Recurring Bills', icon: LucideIcons.repeat, route: '/recurring'),
+  _MoreItem(label: 'Notifications', icon: LucideIcons.bell, route: '/notifications'),
+];
+
+class MoreScreen extends StatelessWidget {
+  const MoreScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppScreen(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('More', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+          const SizedBox(height: AppSpacing.lg),
+          AppCard(
+            child: Column(
+              children: [
+                for (var i = 0; i < _items.length; i++)
+                  ListRow(
+                    icon: Icon(_items[i].icon, size: 16, color: AppColors.textSecondary),
+                    title: _items[i].label,
+                    showChevron: true,
+                    isLast: i == _items.length - 1,
+                    onTap: () => context.push(_items[i].route),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xxl),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Icon(LucideIcons.info, size: 14, color: AppColors.textMuted),
+              SizedBox(width: AppSpacing.sm),
+              Text('JM Finance Tracker v1.0', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Create the Accounts list screen**
+
+Create `lib/screens/accounts_management_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import '../theme/app_theme.dart';
+import '../widgets/app_screen.dart';
+import '../widgets/app_card.dart';
+import '../widgets/list_row.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/icon_chip.dart';
+import '../stores/accounts_store.dart';
+
+class AccountsManagementScreen extends StatelessWidget {
+  const AccountsManagementScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final accounts = context.watch<AccountsStore>().accounts;
+
+    return AppScreen(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Accounts', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+              IconButton(icon: const Icon(LucideIcons.plus, color: AppColors.accent), onPressed: () => context.push('/accounts/new')),
+            ],
+          ),
+          if (accounts.isEmpty)
+            EmptyState(
+              icon: const IconChip(child: Icon(LucideIcons.wallet, size: 16, color: AppColors.textMuted)),
+              message: 'No accounts yet.',
+              ctaLabel: 'Add Account',
+              onPressCta: () => context.push('/accounts/new'),
+            )
+          else
+            AppCard(
+              child: Column(
+                children: [
+                  for (var i = 0; i < accounts.length; i++)
+                    ListRow(
+                      icon: const Icon(LucideIcons.wallet, size: 16, color: AppColors.textSecondary),
+                      title: accounts[i].name,
+                      caption: accounts[i].type,
+                      amount: accounts[i].balance,
+                      isLast: i == accounts.length - 1,
+                      onTap: () => context.push('/accounts/${accounts[i].id}'),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 3: Create the Add/Edit Account screen**
+
+Create `lib/screens/account_edit_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../theme/app_theme.dart';
+import '../models/models.dart';
+import '../widgets/app_screen.dart';
+import '../widgets/app_form_field.dart';
+import '../widgets/app_button.dart';
+import '../widgets/app_segmented_control.dart';
+import '../stores/accounts_store.dart';
+
+const _accountTypes = [
+  SegmentOption(label: 'Checking', value: 'checking'),
+  SegmentOption(label: 'Savings', value: 'savings'),
+  SegmentOption(label: 'Cash', value: 'cash'),
+  SegmentOption(label: 'Credit', value: 'credit'),
+];
+
+class AccountEditScreen extends StatefulWidget {
+  final String id;
+  const AccountEditScreen({super.key, required this.id});
+
+  @override
+  State<AccountEditScreen> createState() => _AccountEditScreenState();
+}
+
+class _AccountEditScreenState extends State<AccountEditScreen> {
+  String _name = '';
+  String _type = 'checking';
+  String _balanceText = '0';
+  bool _initialized = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final accountsStore = context.watch<AccountsStore>();
+    final isNew = widget.id == 'new';
+
+    Account? account;
+    if (!isNew) {
+      for (final a in accountsStore.accounts) {
+        if (a.id == widget.id) {
+          account = a;
+          break;
+        }
+      }
+    }
+
+    if (!_initialized) {
+      _name = account?.name ?? '';
+      _type = account?.type ?? 'checking';
+      _balanceText = account != null ? account.balance.toString() : '0';
+      _initialized = true;
+    }
+
+    void handleSave() {
+      final balance = double.tryParse(_balanceText);
+      if (_name.isEmpty || balance == null) return;
+      if (isNew) {
+        accountsStore.addAccount(name: _name, type: _type, balance: balance);
+      } else if (account != null) {
+        accountsStore.updateAccount(account.id, name: _name, type: _type, balance: balance);
+      }
+      context.pop();
+    }
+
+    void handleDelete() {
+      showDialog(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: const Text('Delete account?', style: TextStyle(color: AppColors.text)),
+          content: const Text('This cannot be undone.', style: TextStyle(color: AppColors.textSecondary)),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () {
+                accountsStore.removeAccount(account!.id);
+                Navigator.pop(dialogContext);
+                context.pop();
+              },
+              child: const Text('Delete', style: TextStyle(color: AppColors.warning)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return AppScreen(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(isNew ? 'Add Account' : 'Edit Account', style: const TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+          const SizedBox(height: AppSpacing.lg),
+          AppFormField(label: 'Account name', value: _name, onChanged: (v) => setState(() => _name = v), placeholder: 'e.g. NCB Checking'),
+          const SizedBox(height: AppSpacing.md),
+          AppSegmentedControl<String>(options: _accountTypes, value: _type, onChanged: (v) => setState(() => _type = v)),
+          const SizedBox(height: AppSpacing.md),
+          AppFormField(label: 'Balance (J\$)', value: _balanceText, onChanged: (v) => setState(() => _balanceText = v), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+          const SizedBox(height: AppSpacing.xl),
+          AppButton(label: 'Save', onPressed: (_name.isNotEmpty && _balanceText.isNotEmpty) ? handleSave : null),
+          if (!isNew) ...[
+            const SizedBox(height: AppSpacing.md),
+            AppButton(label: 'Delete', variant: AppButtonVariant.secondary, onPressed: handleDelete),
+          ],
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 4: Register both routes in `lib/app_router.dart`**
+
+Add the imports near the other screen imports:
+```dart
+import 'screens/accounts_management_screen.dart';
+import 'screens/account_edit_screen.dart';
+```
+Then add these two lines under `// PUSHED ROUTES`:
+```dart
+      GoRoute(path: '/accounts', builder: (context, state) => const AccountsManagementScreen()),
+      GoRoute(path: '/accounts/:id', builder: (context, state) => AccountEditScreen(id: state.pathParameters['id']!)),
+```
+
+- [ ] **Step 5: Verify in the browser**
+
+From More, tap Accounts. Add a second account, edit its balance, then delete it — confirm the list updates each time and the confirmation dialog appears before delete.
+Expected: no errors; note that changing an account's balance here does **not** retroactively adjust past transactions (it is a direct balance edit, same as onboarding) — this matches the spec's manual-entry model.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add lib/screens/more_screen.dart lib/screens/accounts_management_screen.dart lib/screens/account_edit_screen.dart lib/app_router.dart
+git commit -m "feat: build More settings hub and Account management screens"
+```
