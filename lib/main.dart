@@ -1,19 +1,88 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
+
+import 'app_router.dart';
+import 'theme/app_theme.dart';
+import 'widgets/phone_frame.dart';
+import 'widgets/error_banner.dart';
+
+import 'stores/error_banner_store.dart';
+import 'stores/settings_store.dart';
+import 'stores/accounts_store.dart';
+import 'stores/categories_store.dart';
+import 'stores/transactions_store.dart';
+import 'stores/recurring_store.dart';
+import 'stores/goals_store.dart';
+import 'stores/debts_store.dart';
 
 void main() {
-  runApp(const _ScaffoldPlaceholderApp());
+  runApp(const AppRoot());
 }
 
-class _ScaffoldPlaceholderApp extends StatelessWidget {
-  const _ScaffoldPlaceholderApp();
+class AppRoot extends StatelessWidget {
+  const AppRoot({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ErrorBannerStore()),
+        ChangeNotifierProvider(create: (context) => SettingsStore(context.read<ErrorBannerStore>())..hydrate()),
+        ChangeNotifierProvider(create: (context) => AccountsStore(context.read<ErrorBannerStore>())..hydrate()),
+        ChangeNotifierProvider(create: (context) => CategoriesStore(context.read<ErrorBannerStore>())..hydrate()),
+        ChangeNotifierProvider(create: (context) => TransactionsStore(context.read<ErrorBannerStore>())..hydrate()),
+        ChangeNotifierProvider(create: (context) => RecurringStore(context.read<ErrorBannerStore>())..hydrate()),
+        ChangeNotifierProvider(create: (context) => GoalsStore(context.read<ErrorBannerStore>())..hydrate()),
+        ChangeNotifierProvider(create: (context) => DebtsStore(context.read<ErrorBannerStore>())..hydrate()),
+      ],
+      child: const _RouterHost(),
+    );
+  }
+}
+
+class _RouterHost extends StatefulWidget {
+  const _RouterHost();
+
+  @override
+  State<_RouterHost> createState() => _RouterHostState();
+}
+
+class _RouterHostState extends State<_RouterHost> {
+  late final GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    final refresh = Listenable.merge([
+      context.read<SettingsStore>(),
+      context.read<AccountsStore>(),
+      context.read<CategoriesStore>(),
+      context.read<TransactionsStore>(),
+      context.read<RecurringStore>(),
+      context.read<GoalsStore>(),
+      context.read<DebtsStore>(),
+    ]);
+    _router = buildAppRouter(refreshListenable: refresh);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp.router(
+      title: 'JM Finance Tracker',
       debugShowCheckedModeBanner: false,
-      home: Scaffold(
-        body: Center(child: Text('JM Finance Tracker — scaffold OK')),
-      ),
+      theme: buildAppTheme(),
+      routerConfig: _router,
+      builder: (context, child) {
+        return PhoneFrame(
+          child: Stack(
+            children: [
+              if (child != null) child,
+              const ErrorBanner(),
+            ],
+          ),
+        );
+      },
     );
   }
 }
