@@ -2438,3 +2438,264 @@ Expected: `No issues found!`
 git add lib/widgets/app_button.dart lib/widgets/app_progress_bar.dart lib/widgets/app_toggle.dart lib/widgets/app_segmented_control.dart lib/widgets/app_alert.dart
 git commit -m "feat: add button, progress bar, toggle, segmented control, and alert widgets"
 ```
+
+---
+
+### Task 12: Shared widgets part 3 (`StatFigure`, `EmptyState`, `LoadingState`, `AppFormField`, `ErrorBanner`)
+
+**Files:**
+- Create: `lib/widgets/stat_figure.dart`, `lib/widgets/empty_state.dart`, `lib/widgets/loading_state.dart`, `lib/widgets/app_form_field.dart`, `lib/widgets/error_banner.dart`
+
+**Interfaces:**
+- Consumes: `AppColors`/`AppSpacing`/`AppRadius` from `lib/theme/app_theme.dart`; `formatMoney` from `lib/utils/money.dart`; `AppButton` from Task 11; `ErrorBannerStore` from Task 8 (via `provider`).
+- Produces: `enum StatTone { neutral, positive }` and `StatFigure({required String label, required double amount, StatTone tone})`; `EmptyState({required Widget icon, required String message, String? ctaLabel, VoidCallback? onPressCta})`; `LoadingState()`; `AppFormField({required String label, required String value, required ValueChanged<String> onChanged, TextInputType keyboardType, String? placeholder, String? error})`; `ErrorBanner()` — used by nearly every screen from Task 13 onward.
+
+- [ ] **Step 1: Create `StatFigure`**
+
+Create `lib/widgets/stat_figure.dart`:
+```dart
+import 'dart:ui';
+import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
+import '../utils/money.dart';
+
+enum StatTone { neutral, positive }
+
+class StatFigure extends StatelessWidget {
+  final String label;
+  final double amount;
+  final StatTone tone;
+
+  const StatFigure({super.key, required this.label, required this.amount, this.tone = StatTone.neutral});
+
+  @override
+  Widget build(BuildContext context) {
+    final positive = tone == StatTone.positive;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.1)),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          '${positive && amount > 0 ? '+' : ''}${formatMoney(amount)}',
+          style: TextStyle(
+            color: positive ? AppColors.accent : AppColors.text,
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+      ],
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Create `EmptyState`**
+
+Create `lib/widgets/empty_state.dart`:
+```dart
+import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
+import 'app_button.dart';
+
+class EmptyState extends StatelessWidget {
+  final Widget icon;
+  final String message;
+  final String? ctaLabel;
+  final VoidCallback? onPressCta;
+
+  const EmptyState({super.key, required this.icon, required this.message, this.ctaLabel, this.onPressCta});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxxl),
+      child: Column(
+        children: [
+          icon,
+          const SizedBox(height: AppSpacing.md),
+          Text(message, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textMuted, fontSize: 14)),
+          if (ctaLabel != null && onPressCta != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            SizedBox(width: 160, child: AppButton(label: ctaLabel!, onPressed: onPressCta)),
+          ],
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 3: Create `LoadingState`**
+
+Create `lib/widgets/loading_state.dart`:
+```dart
+import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
+
+class LoadingState extends StatelessWidget {
+  const LoadingState({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppColors.bg,
+      alignment: Alignment.center,
+      child: const CircularProgressIndicator(color: AppColors.accent),
+    );
+  }
+}
+```
+
+- [ ] **Step 4: Create `AppFormField`**
+
+`AppFormField` must be a `StatefulWidget` that owns its own `TextEditingController`, syncing it from `widget.value` in `didUpdateWidget` (only when the incoming value actually differs from the controller's current text). A stateless field using `TextFormField(initialValue: ...)` looks correct but silently breaks any screen that clears its text fields after submit (several onboarding screens do this to let the user add another item) — `initialValue` is only honored on first build, so a later `setState` clearing the parent's string would not clear the visible field.
+
+Create `lib/widgets/app_form_field.dart`:
+```dart
+import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
+
+class AppFormField extends StatefulWidget {
+  final String label;
+  final String value;
+  final ValueChanged<String> onChanged;
+  final TextInputType keyboardType;
+  final String? placeholder;
+  final String? error;
+
+  const AppFormField({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.onChanged,
+    this.keyboardType = TextInputType.text,
+    this.placeholder,
+    this.error,
+  });
+
+  @override
+  State<AppFormField> createState() => _AppFormFieldState();
+}
+
+class _AppFormFieldState extends State<AppFormField> {
+  late final TextEditingController _controller = TextEditingController(text: widget.value);
+
+  @override
+  void didUpdateWidget(AppFormField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value != _controller.text) {
+      _controller.text = widget.value;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(widget.label, style: const TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.1)),
+        const SizedBox(height: AppSpacing.xs),
+        TextFormField(
+          controller: _controller,
+          onChanged: widget.onChanged,
+          keyboardType: widget.keyboardType,
+          style: const TextStyle(color: AppColors.text, fontSize: 15),
+          decoration: InputDecoration(
+            hintText: widget.placeholder,
+            hintStyle: const TextStyle(color: AppColors.textMuted),
+            contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md), borderSide: const BorderSide(color: AppColors.border)),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderSide: BorderSide(color: widget.error != null ? AppColors.warning : AppColors.border),
+            ),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md), borderSide: const BorderSide(color: AppColors.accent)),
+          ),
+        ),
+        if (widget.error != null)
+          Padding(padding: const EdgeInsets.only(top: 4), child: Text(widget.error!, style: const TextStyle(color: AppColors.warning, fontSize: 12))),
+      ],
+    );
+  }
+}
+```
+
+- [ ] **Step 5: Create `ErrorBanner`**
+
+Create `lib/widgets/error_banner.dart`:
+```dart
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../stores/error_banner_store.dart';
+import '../theme/app_theme.dart';
+
+/// Overlays a dismissible, auto-hiding banner when ErrorBannerStore has a
+/// message. Must be placed inside a Stack (main.dart, Task 13) since it
+/// positions itself absolutely.
+class ErrorBanner extends StatefulWidget {
+  const ErrorBanner({super.key});
+
+  @override
+  State<ErrorBanner> createState() => _ErrorBannerState();
+}
+
+class _ErrorBannerState extends State<ErrorBanner> {
+  Timer? _timer;
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final store = context.watch<ErrorBannerStore>();
+    final message = store.message;
+
+    if (message != null) {
+      _timer?.cancel();
+      _timer = Timer(const Duration(seconds: 4), () {
+        if (mounted) context.read<ErrorBannerStore>().hide();
+      });
+    }
+
+    if (message == null) return const SizedBox.shrink();
+
+    return Positioned(
+      left: AppSpacing.xl,
+      right: AppSpacing.xl,
+      bottom: 24,
+      child: GestureDetector(
+        onTap: () => context.read<ErrorBannerStore>().hide(),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(color: AppColors.surface, border: Border.all(color: AppColors.warning), borderRadius: BorderRadius.circular(AppRadius.md)),
+          child: Text(message, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.text, fontSize: 13)),
+        ),
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 6: Verify everything compiles**
+
+Run: `flutter analyze lib/widgets/stat_figure.dart lib/widgets/empty_state.dart lib/widgets/loading_state.dart lib/widgets/app_form_field.dart lib/widgets/error_banner.dart`
+Expected: `No issues found!`
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add lib/widgets/stat_figure.dart lib/widgets/empty_state.dart lib/widgets/loading_state.dart lib/widgets/app_form_field.dart lib/widgets/error_banner.dart
+git commit -m "feat: add stat figure, empty/loading state, form field, and error banner widgets"
+```
