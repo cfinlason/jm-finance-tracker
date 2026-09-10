@@ -5248,3 +5248,453 @@ Expected: no errors; note that changing an account's balance here does **not** r
 git add lib/screens/more_screen.dart lib/screens/accounts_management_screen.dart lib/screens/account_edit_screen.dart lib/app_router.dart
 git commit -m "feat: build More settings hub and Account management screens"
 ```
+
+---
+
+### Task 25: Category management + Recurring bills management
+
+**Files:**
+- Create: `lib/screens/categories_screen.dart`, `lib/screens/category_add_screen.dart`, `lib/screens/recurring_management_screen.dart`, `lib/screens/recurring_edit_screen.dart`
+- Modify: `lib/app_router.dart` (register all four routes)
+
+**Interfaces:**
+- Consumes: `CategoriesStore`, `RecurringStore`, `AccountsStore` (Task 8); `AppScreen`, `AppCard`, `ListRow`, `EmptyState`, `IconChip`, `CategoryIcon`, `AppFormField`, `AppButton`, `AppSegmentedControl` (Tasks 10–12).
+- Produces: `/categories`, `/categories/add`, `/recurring`, `/recurring/:id` — all linked from the More screen (Task 24).
+
+- [ ] **Step 1: Create the Categories list screen**
+
+Create `lib/screens/categories_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import '../theme/app_theme.dart';
+import '../widgets/app_screen.dart';
+import '../widgets/app_card.dart';
+import '../widgets/list_row.dart';
+import '../widgets/category_icon.dart';
+import '../stores/categories_store.dart';
+
+class CategoriesScreen extends StatelessWidget {
+  const CategoriesScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final categoriesStore = context.watch<CategoriesStore>();
+    final categories = categoriesStore.categories;
+
+    return AppScreen(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Categories', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+              IconButton(icon: const Icon(LucideIcons.plus, color: AppColors.accent), onPressed: () => context.push('/categories/add')),
+            ],
+          ),
+          AppCard(
+            child: Column(
+              children: [
+                for (var i = 0; i < categories.length; i++)
+                  ListRow(
+                    icon: CategoryIcon(name: categories[i].icon),
+                    title: categories[i].name,
+                    caption: categories[i].isCustom ? 'Custom — tap to remove' : 'Preset',
+                    isLast: i == categories.length - 1,
+                    onTap: categories[i].isCustom ? () => categoriesStore.removeCategory(categories[i].id) : null,
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Create the Add Category screen**
+
+Create `lib/screens/category_add_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../theme/app_theme.dart';
+import '../widgets/app_screen.dart';
+import '../widgets/app_form_field.dart';
+import '../widgets/app_button.dart';
+import '../widgets/app_segmented_control.dart';
+import '../stores/categories_store.dart';
+
+class CategoryAddScreen extends StatefulWidget {
+  const CategoryAddScreen({super.key});
+
+  @override
+  State<CategoryAddScreen> createState() => _CategoryAddScreenState();
+}
+
+class _CategoryAddScreenState extends State<CategoryAddScreen> {
+  String _name = '';
+  String _kind = 'expense';
+
+  @override
+  Widget build(BuildContext context) {
+    final categoriesStore = context.watch<CategoriesStore>();
+
+    void handleSave() {
+      if (_name.isEmpty) return;
+      categoriesStore.addCategory(_name, 'more-horizontal', _kind == 'income');
+      context.pop();
+    }
+
+    return AppScreen(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Add Category', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+          const SizedBox(height: AppSpacing.lg),
+          AppFormField(label: 'Category name', value: _name, onChanged: (v) => setState(() => _name = v), placeholder: 'e.g. Subscriptions'),
+          const SizedBox(height: AppSpacing.md),
+          AppSegmentedControl<String>(
+            options: const [SegmentOption(label: 'Expense', value: 'expense'), SegmentOption(label: 'Income', value: 'income')],
+            value: _kind,
+            onChanged: (v) => setState(() => _kind = v),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          AppButton(label: 'Save', onPressed: _name.isNotEmpty ? handleSave : null),
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 3: Create the Recurring bills list screen**
+
+Create `lib/screens/recurring_management_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import '../theme/app_theme.dart';
+import '../widgets/app_screen.dart';
+import '../widgets/app_card.dart';
+import '../widgets/list_row.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/icon_chip.dart';
+import '../stores/recurring_store.dart';
+
+class RecurringManagementScreen extends StatelessWidget {
+  const RecurringManagementScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final rules = context.watch<RecurringStore>().rules;
+
+    return AppScreen(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Recurring Bills', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+              IconButton(icon: const Icon(LucideIcons.plus, color: AppColors.accent), onPressed: () => context.push('/recurring/new')),
+            ],
+          ),
+          if (rules.isEmpty)
+            EmptyState(
+              icon: const IconChip(child: Icon(LucideIcons.repeat, size: 16, color: AppColors.textMuted)),
+              message: 'No recurring bills.',
+              ctaLabel: 'Add Bill',
+              onPressCta: () => context.push('/recurring/new'),
+            )
+          else
+            AppCard(
+              child: Column(
+                children: [
+                  for (var i = 0; i < rules.length; i++)
+                    ListRow(
+                      icon: const Icon(LucideIcons.repeat, size: 16, color: AppColors.textSecondary),
+                      title: rules[i].name,
+                      caption: '${rules[i].frequency} · due ${rules[i].nextDueDate.substring(0, 10)}',
+                      amount: -rules[i].amount,
+                      isLast: i == rules.length - 1,
+                      onTap: () => context.push('/recurring/${rules[i].id}'),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 4: Create the Add/Edit Recurring Bill screen**
+
+Create `lib/screens/recurring_edit_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../theme/app_theme.dart';
+import '../models/models.dart';
+import '../widgets/app_screen.dart';
+import '../widgets/app_form_field.dart';
+import '../widgets/app_button.dart';
+import '../widgets/app_segmented_control.dart';
+import '../stores/recurring_store.dart';
+import '../stores/accounts_store.dart';
+import '../stores/categories_store.dart';
+
+const _frequencies = [
+  SegmentOption(label: 'Weekly', value: 'weekly'),
+  SegmentOption(label: 'Biweekly', value: 'biweekly'),
+  SegmentOption(label: 'Monthly', value: 'monthly'),
+];
+
+class RecurringEditScreen extends StatefulWidget {
+  final String id;
+  const RecurringEditScreen({super.key, required this.id});
+
+  @override
+  State<RecurringEditScreen> createState() => _RecurringEditScreenState();
+}
+
+class _RecurringEditScreenState extends State<RecurringEditScreen> {
+  String _name = '';
+  String _amountText = '';
+  String _frequency = 'monthly';
+  String _nextDueDate = '';
+  bool _initialized = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final recurringStore = context.watch<RecurringStore>();
+    final accountsStore = context.watch<AccountsStore>();
+    final categoriesStore = context.watch<CategoriesStore>();
+    final isNew = widget.id == 'new';
+
+    RecurringRule? rule;
+    if (!isNew) {
+      for (final r in recurringStore.rules) {
+        if (r.id == widget.id) {
+          rule = r;
+          break;
+        }
+      }
+    }
+
+    if (!_initialized) {
+      _name = rule?.name ?? '';
+      _amountText = rule != null ? rule.amount.toString() : '';
+      _frequency = rule?.frequency ?? 'monthly';
+      _nextDueDate = rule?.nextDueDate ?? DateTime.now().toIso8601String();
+      _initialized = true;
+    }
+
+    void handleSave() {
+      final amount = double.tryParse(_amountText);
+      if (_name.isEmpty || amount == null || accountsStore.accounts.isEmpty || categoriesStore.categories.isEmpty) return;
+      if (isNew) {
+        recurringStore.addRule(
+          name: _name,
+          categoryId: categoriesStore.categories[0].id,
+          accountId: accountsStore.accounts[0].id,
+          amount: amount,
+          frequency: _frequency,
+          nextDueDate: _nextDueDate,
+        );
+      } else if (rule != null) {
+        recurringStore.updateRule(rule.id, name: _name, amount: amount, frequency: _frequency);
+      }
+      context.pop();
+    }
+
+    void handleDelete() {
+      showDialog(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: const Text('Delete recurring bill?', style: TextStyle(color: AppColors.text)),
+          content: const Text('This cannot be undone.', style: TextStyle(color: AppColors.textSecondary)),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () {
+                recurringStore.removeRule(rule!.id);
+                Navigator.pop(dialogContext);
+                context.pop();
+              },
+              child: const Text('Delete', style: TextStyle(color: AppColors.warning)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return AppScreen(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(isNew ? 'Add Recurring Bill' : 'Edit Recurring Bill', style: const TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+          const SizedBox(height: AppSpacing.lg),
+          AppFormField(label: 'Name', value: _name, onChanged: (v) => setState(() => _name = v), placeholder: 'e.g. Netflix'),
+          const SizedBox(height: AppSpacing.md),
+          AppFormField(label: 'Amount (J\$)', value: _amountText, onChanged: (v) => setState(() => _amountText = v), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+          const SizedBox(height: AppSpacing.md),
+          AppSegmentedControl<String>(options: _frequencies, value: _frequency, onChanged: (v) => setState(() => _frequency = v)),
+          const SizedBox(height: AppSpacing.xl),
+          AppButton(label: 'Save', onPressed: (_name.isNotEmpty && _amountText.isNotEmpty) ? handleSave : null),
+          if (!isNew) ...[
+            const SizedBox(height: AppSpacing.md),
+            AppButton(label: 'Delete', variant: AppButtonVariant.secondary, onPressed: handleDelete),
+          ],
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 5: Register all four routes in `lib/app_router.dart`**
+
+Add the imports near the other screen imports:
+```dart
+import 'screens/categories_screen.dart';
+import 'screens/category_add_screen.dart';
+import 'screens/recurring_management_screen.dart';
+import 'screens/recurring_edit_screen.dart';
+```
+Then add these four lines under `// PUSHED ROUTES`:
+```dart
+      GoRoute(path: '/categories', builder: (context, state) => const CategoriesScreen()),
+      GoRoute(path: '/categories/add', builder: (context, state) => const CategoryAddScreen()),
+      GoRoute(path: '/recurring', builder: (context, state) => const RecurringManagementScreen()),
+      GoRoute(path: '/recurring/:id', builder: (context, state) => RecurringEditScreen(id: state.pathParameters['id']!)),
+```
+
+- [ ] **Step 6: Verify in the browser**
+
+From More → Categories: add a custom category, confirm it appears tagged "Custom", tap it to remove it, confirm preset categories cannot be tapped/removed. From More → Recurring Bills: add, edit, and delete a bill, confirming the Cash Flow screen (Task 23) reflects the change.
+Expected: no errors.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add lib/screens/categories_screen.dart lib/screens/category_add_screen.dart lib/screens/recurring_management_screen.dart lib/screens/recurring_edit_screen.dart lib/app_router.dart
+git commit -m "feat: build Category and Recurring Bills management screens"
+```
+
+---
+
+### Task 26: Notifications list screen
+
+**Files:**
+- Create: `lib/screens/notifications_screen.dart`
+- Modify: `lib/app_router.dart` (register the route)
+
+**Interfaces:**
+- Consumes: `RecurringStore`, `GoalsStore` (Task 8); `isBefore`, `addDays` (Task 4); `AppScreen`, `AppCard`, `ListRow`, `EmptyState`, `IconChip` (Tasks 10–12).
+- Produces: `/notifications`, linked from More (Task 24) — locally generated reminders only (bills due within 7 days, goals that have reached their target). No push notifications, per spec.
+
+- [ ] **Step 1: Create the Notifications screen**
+
+Create `lib/screens/notifications_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import '../theme/app_theme.dart';
+import '../widgets/app_screen.dart';
+import '../widgets/app_card.dart';
+import '../widgets/list_row.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/icon_chip.dart';
+import '../utils/date_utils.dart' as date_utils;
+import '../stores/recurring_store.dart';
+import '../stores/goals_store.dart';
+
+class _NotificationItem {
+  final String title;
+  final String caption;
+  const _NotificationItem({required this.title, required this.caption});
+}
+
+class NotificationsScreen extends StatelessWidget {
+  const NotificationsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final rules = context.watch<RecurringStore>().rules;
+    final goals = context.watch<GoalsStore>().goals;
+
+    final now = DateTime.now();
+    final soon = date_utils.addDays(now, 7);
+
+    final notifications = <_NotificationItem>[
+      for (final r in rules)
+        if (date_utils.isBefore(DateTime.parse(r.nextDueDate), soon))
+          _NotificationItem(title: '${r.name} due soon', caption: r.nextDueDate.substring(0, 10)),
+      for (final g in goals)
+        if (g.currentAmount >= g.targetAmount) _NotificationItem(title: '${g.name} goal reached!', caption: 'Milestone hit'),
+    ];
+
+    return AppScreen(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Notifications', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+          const SizedBox(height: AppSpacing.lg),
+          if (notifications.isEmpty)
+            const EmptyState(icon: IconChip(child: Icon(LucideIcons.bell, size: 16, color: AppColors.textMuted)), message: 'No notifications.')
+          else
+            AppCard(
+              child: Column(
+                children: [
+                  for (var i = 0; i < notifications.length; i++)
+                    ListRow(
+                      icon: const Icon(LucideIcons.bell, size: 16, color: AppColors.textSecondary),
+                      title: notifications[i].title,
+                      caption: notifications[i].caption,
+                      isLast: i == notifications.length - 1,
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Register the route in `lib/app_router.dart`**
+
+Add the import near the other screen imports:
+```dart
+import 'screens/notifications_screen.dart';
+```
+Then add this line under `// PUSHED ROUTES`:
+```dart
+      GoRoute(path: '/notifications', builder: (context, state) => const NotificationsScreen()),
+```
+
+- [ ] **Step 3: Verify in the browser**
+
+Add a recurring bill due within the next 7 days — confirm a "due soon" notification appears. Push a goal's `currentAmount` to meet its `targetAmount` via a contribution (Task 21) — confirm a "goal reached" notification appears.
+Expected: no errors; empty state shows otherwise.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add lib/screens/notifications_screen.dart lib/app_router.dart
+git commit -m "feat: build Notifications screen with local bill and goal-milestone reminders"
+```
