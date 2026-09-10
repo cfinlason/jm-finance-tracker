@@ -4551,3 +4551,416 @@ Expected: no errors; progress bar clamps at 100% if a contribution exceeds the t
 git add lib/screens/goals_list_screen.dart lib/screens/goal_detail_screen.dart lib/app_router.dart
 git commit -m "feat: build Goals list and Goal detail/create screen with contributions"
 ```
+
+---
+
+### Task 22: Debt screen + Add/Edit Debt
+
+**Files:**
+- Create: `lib/screens/debt_screen.dart`, `lib/screens/debt_edit_screen.dart`
+- Modify: `lib/app_router.dart` (register both routes)
+
+**Interfaces:**
+- Consumes: `projectDebtPayoff` (Task 6); `DebtsStore` (Task 8); `AppScreen`, `AppCard`, `EmptyState`, `IconChip`, `AppSegmentedControl`, `AppFormField`, `AppButton` (Tasks 10–12); `formatMoney` (Task 4).
+- Produces: `/debt` (linked from Home's quick actions and More, Task 24) and a single route `/debts/:id` for add/edit/delete. The spec's Screens table (§6) doesn't list a separate debt-entry screen, so debts are managed the same way as every other entity — via a "+" on the Debt overview — for consistency (spec §5 makes this decision explicit).
+
+- [ ] **Step 1: Create the Debt overview screen**
+
+Create `lib/screens/debt_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import '../theme/app_theme.dart';
+import '../widgets/app_screen.dart';
+import '../widgets/app_card.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/icon_chip.dart';
+import '../widgets/app_segmented_control.dart';
+import '../widgets/app_form_field.dart';
+import '../utils/money.dart';
+import '../logic/debt_payoff.dart';
+import '../stores/debts_store.dart';
+
+class DebtScreen extends StatefulWidget {
+  const DebtScreen({super.key});
+
+  @override
+  State<DebtScreen> createState() => _DebtScreenState();
+}
+
+class _DebtScreenState extends State<DebtScreen> {
+  String _strategy = 'snowball';
+  String _extraText = '0';
+
+  @override
+  Widget build(BuildContext context) {
+    final debts = context.watch<DebtsStore>().debts;
+    final totalOwed = debts.fold<double>(0, (s, d) => s + d.balance);
+    final extra = double.tryParse(_extraText) ?? 0;
+    final projection = projectDebtPayoff(debts, extra);
+    final result = _strategy == 'snowball' ? projection.snowball : projection.avalanche;
+
+    return AppScreen(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Debt', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+              IconButton(icon: const Icon(LucideIcons.plus, color: AppColors.accent), onPressed: () => context.push('/debts/new')),
+            ],
+          ),
+          if (debts.isEmpty)
+            EmptyState(
+              icon: const IconChip(child: Icon(LucideIcons.creditCard, size: 16, color: AppColors.textMuted)),
+              message: 'No debts tracked.',
+              ctaLabel: 'Add Debt',
+              onPressCta: () => context.push('/debts/new'),
+            )
+          else ...[
+            AppCard(
+              margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('TOTAL OWED', style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.1)),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(formatMoney(totalOwed), style: const TextStyle(color: AppColors.text, fontSize: 32, fontWeight: FontWeight.w800)),
+                ],
+              ),
+            ),
+            AppCard(
+              emphasis: true,
+              margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Payoff Projection', style: TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: AppSpacing.md),
+                  AppSegmentedControl<String>(
+                    options: const [SegmentOption(label: 'Snowball', value: 'snowball'), SegmentOption(label: 'Avalanche', value: 'avalanche')],
+                    value: _strategy,
+                    onChanged: (v) => setState(() => _strategy = v),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  AppFormField(
+                    label: 'Extra monthly payment (J\$)',
+                    value: _extraText,
+                    onChanged: (v) => setState(() => _extraText = v),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('MONTHS TO DEBT-FREE', style: TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 4),
+                          Text('${result.months}', style: const TextStyle(color: AppColors.accent, fontSize: 22, fontWeight: FontWeight.w800)),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('TOTAL INTEREST', style: TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 4),
+                          Text(formatMoney(result.totalInterest), style: const TextStyle(color: AppColors.accent, fontSize: 22, fontWeight: FontWeight.w800)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            for (final d in debts)
+              GestureDetector(
+                onTap: () => context.push('/debts/${d.id}'),
+                child: AppCard(
+                  margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(d.name, style: const TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 4),
+                      Text('${formatMoney(d.balance)} · ${d.interestRate}% APR · Min ${formatMoney(d.minPayment)}', style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Create the Add/Edit Debt screen**
+
+Create `lib/screens/debt_edit_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../theme/app_theme.dart';
+import '../models/models.dart';
+import '../widgets/app_screen.dart';
+import '../widgets/app_form_field.dart';
+import '../widgets/app_button.dart';
+import '../stores/debts_store.dart';
+
+class DebtEditScreen extends StatefulWidget {
+  final String id;
+  const DebtEditScreen({super.key, required this.id});
+
+  @override
+  State<DebtEditScreen> createState() => _DebtEditScreenState();
+}
+
+class _DebtEditScreenState extends State<DebtEditScreen> {
+  String _name = '';
+  String _balanceText = '';
+  String _rateText = '';
+  String _minPaymentText = '';
+  bool _initialized = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final debtsStore = context.watch<DebtsStore>();
+    final isNew = widget.id == 'new';
+
+    Debt? debt;
+    if (!isNew) {
+      for (final d in debtsStore.debts) {
+        if (d.id == widget.id) {
+          debt = d;
+          break;
+        }
+      }
+    }
+
+    if (!_initialized) {
+      _name = debt?.name ?? '';
+      _balanceText = debt != null ? debt.balance.toString() : '';
+      _rateText = debt != null ? debt.interestRate.toString() : '';
+      _minPaymentText = debt != null ? debt.minPayment.toString() : '';
+      _initialized = true;
+    }
+
+    void handleSave() {
+      final balance = double.tryParse(_balanceText);
+      final interestRate = double.tryParse(_rateText);
+      final minPayment = double.tryParse(_minPaymentText);
+      if (_name.isEmpty || balance == null || interestRate == null || minPayment == null) return;
+      if (isNew) {
+        debtsStore.addDebt(name: _name, balance: balance, interestRate: interestRate, minPayment: minPayment, dueDayOfMonth: 1);
+      } else if (debt != null) {
+        debtsStore.updateDebt(debt.id, name: _name, balance: balance, interestRate: interestRate, minPayment: minPayment);
+      }
+      context.pop();
+    }
+
+    void handleDelete() {
+      showDialog(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: const Text('Delete debt?', style: TextStyle(color: AppColors.text)),
+          content: const Text('This cannot be undone.', style: TextStyle(color: AppColors.textSecondary)),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () {
+                debtsStore.removeDebt(debt!.id);
+                Navigator.pop(dialogContext);
+                context.pop();
+              },
+              child: const Text('Delete', style: TextStyle(color: AppColors.warning)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final isValid = _name.isNotEmpty && _balanceText.isNotEmpty && _rateText.isNotEmpty && _minPaymentText.isNotEmpty;
+
+    return AppScreen(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(isNew ? 'Add Debt' : 'Edit Debt', style: const TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+          const SizedBox(height: AppSpacing.lg),
+          AppFormField(label: 'Debt name', value: _name, onChanged: (v) => setState(() => _name = v), placeholder: 'e.g. Credit Card'),
+          const SizedBox(height: AppSpacing.md),
+          AppFormField(label: 'Balance (J\$)', value: _balanceText, onChanged: (v) => setState(() => _balanceText = v), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+          const SizedBox(height: AppSpacing.md),
+          AppFormField(label: 'Interest rate (APR %)', value: _rateText, onChanged: (v) => setState(() => _rateText = v), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+          const SizedBox(height: AppSpacing.md),
+          AppFormField(label: 'Minimum payment (J\$)', value: _minPaymentText, onChanged: (v) => setState(() => _minPaymentText = v), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+          const SizedBox(height: AppSpacing.xl),
+          AppButton(label: 'Save', onPressed: isValid ? handleSave : null),
+          if (!isNew) ...[
+            const SizedBox(height: AppSpacing.md),
+            AppButton(label: 'Delete', variant: AppButtonVariant.secondary, onPressed: handleDelete),
+          ],
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 3: Register both routes in `lib/app_router.dart`**
+
+Add the imports near the other screen imports:
+```dart
+import 'screens/debt_screen.dart';
+import 'screens/debt_edit_screen.dart';
+```
+Then add these two lines under `// PUSHED ROUTES`:
+```dart
+      GoRoute(path: '/debt', builder: (context, state) => const DebtScreen()),
+      GoRoute(path: '/debts/:id', builder: (context, state) => DebtEditScreen(id: state.pathParameters['id']!)),
+```
+
+- [ ] **Step 4: Verify in the browser**
+
+Add two debts with different balances/interest rates. On the Debt screen, toggle Snowball/Avalanche and adjust the extra payment field; confirm months/interest update live. Edit a debt's balance and confirm the projection recalculates. Delete a debt and confirm it's removed and the total updates.
+Expected: no errors; empty state shows with zero debts.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add lib/screens/debt_screen.dart lib/screens/debt_edit_screen.dart lib/app_router.dart
+git commit -m "feat: build Debt overview with snowball/avalanche projection and Add/Edit Debt"
+```
+
+---
+
+### Task 23: Cash Flow screen
+
+**Files:**
+- Create: `lib/screens/cash_flow_screen.dart`
+- Modify: `lib/app_router.dart` (register the route)
+
+**Interfaces:**
+- Consumes: `AccountsStore`, `RecurringStore` (Task 8); `AppScreen`, `AppCard`, `EmptyState`, `IconChip` (Tasks 10–12); `formatMoney` (Task 4).
+- Produces: `/cash-flow`, linked from Home's quick actions — a timeline of upcoming recurring bills plotted against a running projected balance.
+
+- [ ] **Step 1: Create the Cash Flow screen**
+
+Create `lib/screens/cash_flow_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import '../theme/app_theme.dart';
+import '../models/models.dart';
+import '../widgets/app_screen.dart';
+import '../widgets/app_card.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/icon_chip.dart';
+import '../utils/money.dart';
+import '../stores/accounts_store.dart';
+import '../stores/recurring_store.dart';
+
+class _TimelineItem {
+  final RecurringRule rule;
+  final double runningBalance;
+  _TimelineItem({required this.rule, required this.runningBalance});
+}
+
+class CashFlowScreen extends StatelessWidget {
+  const CashFlowScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final accounts = context.watch<AccountsStore>().accounts;
+    final rules = context.watch<RecurringStore>().rules;
+    final startBalance = accounts.fold<double>(0, (s, a) => s + a.balance);
+
+    final sortedRules = [...rules]..sort((a, b) => a.nextDueDate.compareTo(b.nextDueDate));
+    var running = startBalance;
+    final timeline = <_TimelineItem>[];
+    for (final r in sortedRules) {
+      running -= r.amount;
+      timeline.add(_TimelineItem(rule: r, runningBalance: running));
+    }
+
+    return AppScreen(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Cash Flow', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+          const SizedBox(height: AppSpacing.lg),
+          AppCard(
+            margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('CURRENT BALANCE', style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.1)),
+                const SizedBox(height: AppSpacing.sm),
+                Text(formatMoney(startBalance), style: const TextStyle(color: AppColors.text, fontSize: 28, fontWeight: FontWeight.w800)),
+              ],
+            ),
+          ),
+          if (timeline.isEmpty)
+            const EmptyState(icon: IconChip(child: Icon(LucideIcons.trendingUp, size: 16, color: AppColors.textMuted)), message: 'No upcoming bills to project.')
+          else
+            for (final item in timeline)
+              AppCard(
+                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(item.rule.name, style: const TextStyle(color: AppColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                        Text(item.rule.nextDueDate.substring(0, 10), style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text('-${formatMoney(item.rule.amount)}', style: const TextStyle(color: AppColors.text, fontSize: 14, fontWeight: FontWeight.w700)),
+                        Text('Bal: ${formatMoney(item.runningBalance)}', style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Register the route in `lib/app_router.dart`**
+
+Add the import near the other screen imports:
+```dart
+import 'screens/cash_flow_screen.dart';
+```
+Then add this line under `// PUSHED ROUTES`:
+```dart
+      GoRoute(path: '/cash-flow', builder: (context, state) => const CashFlowScreen()),
+```
+
+- [ ] **Step 3: Verify in the browser**
+
+With no recurring bills: empty state shows. After adding 2 recurring bills with different `nextDueDate` values (via Task 15's onboarding screen or Task 25's Recurring management screen once built): timeline lists them chronologically with a correctly decrementing running balance.
+Expected: no errors.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add lib/screens/cash_flow_screen.dart lib/app_router.dart
+git commit -m "feat: build Cash Flow screen with upcoming bills timeline"
+```
