@@ -2202,3 +2202,239 @@ Expected: `No issues found!`
 git add lib/utils/icon_map.dart lib/widgets/phone_frame.dart lib/widgets/app_screen.dart lib/widgets/app_card.dart lib/widgets/icon_chip.dart lib/widgets/category_icon.dart lib/widgets/list_row.dart
 git commit -m "feat: add icon map and phone frame/screen/card/list-row widgets"
 ```
+
+---
+
+### Task 11: Shared widgets part 2 (`AppButton`, `AppProgressBar`, `AppToggle`, `AppSegmentedControl`, `AppAlert`)
+
+**Files:**
+- Create: `lib/widgets/app_button.dart`, `lib/widgets/app_progress_bar.dart`, `lib/widgets/app_toggle.dart`, `lib/widgets/app_segmented_control.dart`, `lib/widgets/app_alert.dart`
+
+**Interfaces:**
+- Consumes: `AppColors`/`AppSpacing`/`AppRadius` from `lib/theme/app_theme.dart`.
+- Produces: `enum AppButtonVariant { primary, secondary }`; `AppButton({required String label, required VoidCallback? onPressed, bool loading, AppButtonVariant variant})` (pass `onPressed: null` for a disabled button); `AppProgressBar({required double progress})`; `AppToggle({required bool value, required ValueChanged<bool> onChanged})`; `class SegmentOption<T> { final String label; final T value; }` and `AppSegmentedControl<T>({required List<SegmentOption<T>> options, required T value, required ValueChanged<T> onChanged})`; `enum AppAlertVariant { normal, warning }` and `AppAlert({AppAlertVariant variant, required String text})` — used throughout every form and the Debt screen (Task 22).
+
+- [ ] **Step 1: Create `AppButton`**
+
+Create `lib/widgets/app_button.dart`:
+```dart
+import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
+
+enum AppButtonVariant { primary, secondary }
+
+/// Pass `onPressed: null` to render a disabled button.
+class AppButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onPressed;
+  final bool loading;
+  final AppButtonVariant variant;
+
+  const AppButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.loading = false,
+    this.variant = AppButtonVariant.primary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isPrimary = variant == AppButtonVariant.primary;
+    final disabled = onPressed == null || loading;
+
+    return Opacity(
+      opacity: disabled ? 0.4 : 1,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: disabled ? null : onPressed,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md2),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: isPrimary ? AppColors.accent : Colors.transparent,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: isPrimary ? null : Border.all(color: AppColors.border),
+            ),
+            child: loading
+                ? SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: isPrimary ? AppColors.accentInk : AppColors.text),
+                  )
+                : Text(label, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: isPrimary ? AppColors.accentInk : AppColors.text)),
+          ),
+        ),
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Create `AppProgressBar`**
+
+Create `lib/widgets/app_progress_bar.dart`:
+```dart
+import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
+
+class AppProgressBar extends StatelessWidget {
+  final double progress;
+  const AppProgressBar({super.key, required this.progress});
+
+  @override
+  Widget build(BuildContext context) {
+    final clamped = progress.isFinite ? progress.clamp(0.0, 1.0) : 0.0;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Container(
+          height: 6,
+          decoration: BoxDecoration(color: AppColors.surfaceMuted, borderRadius: BorderRadius.circular(3)),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              width: constraints.maxWidth * clamped,
+              height: 6,
+              decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(3)),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+```
+
+- [ ] **Step 3: Create `AppToggle`**
+
+Create `lib/widgets/app_toggle.dart`:
+```dart
+import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
+
+class AppToggle extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const AppToggle({super.key, required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => onChanged(!value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: 40,
+        height: 24,
+        decoration: BoxDecoration(color: value ? AppColors.accent : AppColors.surfaceMuted, borderRadius: BorderRadius.circular(AppRadius.pill)),
+        child: AnimatedAlign(
+          duration: const Duration(milliseconds: 150),
+          alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            width: 20,
+            height: 20,
+            decoration: const BoxDecoration(color: AppColors.text, shape: BoxShape.circle),
+          ),
+        ),
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 4: Create `AppSegmentedControl`**
+
+Create `lib/widgets/app_segmented_control.dart`:
+```dart
+import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
+
+class SegmentOption<T> {
+  final String label;
+  final T value;
+  const SegmentOption({required this.label, required this.value});
+}
+
+class AppSegmentedControl<T> extends StatelessWidget {
+  final List<SegmentOption<T>> options;
+  final T value;
+  final ValueChanged<T> onChanged;
+
+  const AppSegmentedControl({super.key, required this.options, required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(color: AppColors.surfaceMuted, borderRadius: BorderRadius.circular(AppRadius.pill)),
+      child: Row(
+        children: options.map((opt) {
+          final active = opt.value == value;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => onChanged(opt.value),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm2),
+                decoration: BoxDecoration(color: active ? AppColors.accent : Colors.transparent, borderRadius: BorderRadius.circular(AppRadius.pill)),
+                alignment: Alignment.center,
+                child: Text(opt.label, style: TextStyle(color: active ? AppColors.accentInk : AppColors.textMuted, fontWeight: FontWeight.w700, fontSize: 13)),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 5: Create `AppAlert`**
+
+Create `lib/widgets/app_alert.dart`:
+```dart
+import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
+
+enum AppAlertVariant { normal, warning }
+
+class AppAlert extends StatelessWidget {
+  final AppAlertVariant variant;
+  final String text;
+
+  const AppAlert({super.key, this.variant = AppAlertVariant.normal, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final isWarning = variant == AppAlertVariant.warning;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: isWarning ? AppColors.warningBorder : AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Icon(isWarning ? Icons.warning_amber_rounded : Icons.check_circle_outline, size: 16, color: isWarning ? AppColors.warning : AppColors.accent),
+          const SizedBox(width: AppSpacing.sm2),
+          Expanded(child: Text(text, style: const TextStyle(color: AppColors.text, fontSize: 13))),
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 6: Verify everything compiles**
+
+Run: `flutter analyze lib/widgets/app_button.dart lib/widgets/app_progress_bar.dart lib/widgets/app_toggle.dart lib/widgets/app_segmented_control.dart lib/widgets/app_alert.dart`
+Expected: `No issues found!`
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add lib/widgets/app_button.dart lib/widgets/app_progress_bar.dart lib/widgets/app_toggle.dart lib/widgets/app_segmented_control.dart lib/widgets/app_alert.dart
+git commit -m "feat: add button, progress bar, toggle, segmented control, and alert widgets"
+```
