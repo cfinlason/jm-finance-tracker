@@ -3044,3 +3044,516 @@ Expected: a brief loading spinner, then redirect to `/onboarding/welcome` (fresh
 git add lib/main.dart lib/app_router.dart lib/widgets/main_shell.dart lib/screens/onboarding/welcome_screen.dart lib/screens/home_screen.dart lib/screens/transactions_screen.dart lib/screens/insights_screen.dart lib/screens/goals_list_screen.dart lib/screens/more_screen.dart
 git commit -m "feat: wire up router, hydration-gated redirect, and 5-tab shell"
 ```
+
+---
+
+### Task 14: Onboarding — Welcome + Add Account(s)
+
+**Files:**
+- Modify: `lib/screens/onboarding/welcome_screen.dart` (replace Task 13's stub), `lib/app_router.dart` (register the new route)
+- Create: `lib/screens/onboarding/accounts_screen.dart`
+
+**Interfaces:**
+- Consumes: `AppScreen`, `AppButton`, `AppFormField`, `AppCard`, `ListRow` from Tasks 10–12; `AccountsStore` from Task 8 (via `provider`).
+- Produces: the first two onboarding steps; navigates to `/onboarding/income` on completion (built in Task 15).
+
+- [ ] **Step 1: Replace the Welcome screen**
+
+Overwrite `lib/screens/onboarding/welcome_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/app_screen.dart';
+import '../../widgets/app_button.dart';
+
+class WelcomeScreen extends StatelessWidget {
+  const WelcomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppScreen(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: AppSpacing.xxxl),
+          const Text('WELCOME TO', style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.1)),
+          const SizedBox(height: AppSpacing.sm),
+          const Text('JM Finance Tracker', style: TextStyle(color: AppColors.text, fontSize: 32, fontWeight: FontWeight.w800)),
+          const SizedBox(height: AppSpacing.lg),
+          const Text(
+            'Track your accounts, transactions, bills, and goals — all in Jamaican dollars, all on your device.',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 15, height: 1.5),
+          ),
+          const SizedBox(height: AppSpacing.xxxl),
+          AppButton(label: 'Get Started', onPressed: () => context.push('/onboarding/accounts')),
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Create the Add Account(s) screen**
+
+Create `lib/screens/onboarding/accounts_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/app_screen.dart';
+import '../../widgets/app_form_field.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_card.dart';
+import '../../widgets/list_row.dart';
+import '../../stores/accounts_store.dart';
+
+class OnboardingAccountsScreen extends StatefulWidget {
+  const OnboardingAccountsScreen({super.key});
+
+  @override
+  State<OnboardingAccountsScreen> createState() => _OnboardingAccountsScreenState();
+}
+
+class _OnboardingAccountsScreenState extends State<OnboardingAccountsScreen> {
+  String _name = '';
+  String _balanceText = '';
+
+  void _handleAdd(AccountsStore store) {
+    final balance = double.tryParse(_balanceText);
+    if (_name.isEmpty || balance == null) return;
+    store.addAccount(name: _name, type: 'checking', balance: balance);
+    setState(() {
+      _name = '';
+      _balanceText = '';
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accountsStore = context.watch<AccountsStore>();
+    final accounts = accountsStore.accounts;
+
+    return AppScreen(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: AppSpacing.xl),
+          const Text('Add your accounts', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+          const SizedBox(height: AppSpacing.sm),
+          const Text('Add at least one account to get started. You can add more or edit later.', style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+          const SizedBox(height: AppSpacing.xl),
+          if (accounts.isNotEmpty)
+            AppCard(
+              margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+              child: Column(
+                children: [
+                  for (var i = 0; i < accounts.length; i++)
+                    ListRow(
+                      icon: const Icon(LucideIcons.wallet, size: 16, color: AppColors.textSecondary),
+                      title: accounts[i].name,
+                      amount: accounts[i].balance,
+                      isLast: i == accounts.length - 1,
+                    ),
+                ],
+              ),
+            ),
+          AppFormField(label: 'Account name', value: _name, onChanged: (v) => setState(() => _name = v), placeholder: 'e.g. NCB Checking'),
+          const SizedBox(height: AppSpacing.md),
+          AppFormField(
+            label: 'Balance (J\$)',
+            value: _balanceText,
+            onChanged: (v) => setState(() => _balanceText = v),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppButton(
+            label: 'Add Account',
+            variant: AppButtonVariant.secondary,
+            onPressed: (_name.isNotEmpty && _balanceText.isNotEmpty) ? () => _handleAdd(accountsStore) : null,
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          AppButton(label: 'Continue', onPressed: accounts.isNotEmpty ? () => context.push('/onboarding/income') : null),
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 3: Register the route in `lib/app_router.dart`**
+
+Add the import near the other onboarding screen imports:
+```dart
+import 'screens/onboarding/accounts_screen.dart';
+```
+Then add this line directly below the `// ONBOARDING ROUTES` comment's existing welcome route:
+```dart
+      GoRoute(path: '/onboarding/accounts', builder: (context, state) => const OnboardingAccountsScreen()),
+```
+
+- [ ] **Step 4: Verify in the browser**
+
+Run: `flutter run -d chrome` at phone width. From Welcome, tap "Get Started". Add an account with a name and balance; confirm it appears in the list and "Continue" becomes enabled only once at least one account exists.
+Expected: no errors; navigating to `/onboarding/income` shows a blank/404 route, which is expected until Task 15 creates it.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add lib/screens/onboarding/welcome_screen.dart lib/screens/onboarding/accounts_screen.dart lib/app_router.dart
+git commit -m "feat: build onboarding Welcome and Add Account(s) screens"
+```
+
+---
+
+### Task 15: Onboarding — Set Monthly Income + Recurring Bills (skippable)
+
+**Files:**
+- Create: `lib/screens/onboarding/income_screen.dart`, `lib/screens/onboarding/recurring_screen.dart`
+- Modify: `lib/app_router.dart` (register both routes)
+
+**Interfaces:**
+- Consumes: `SettingsStore`, `RecurringStore`, `AccountsStore`, `CategoriesStore` from Task 8; `AppScreen`/`AppFormField`/`AppButton`/`AppCard`/`ListRow` from Tasks 10–12.
+- Produces: navigates `/onboarding/income` → `/onboarding/recurring` → `/onboarding/goals` (built in Task 16).
+
+- [ ] **Step 1: Create the income estimate screen**
+
+Create `lib/screens/onboarding/income_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/app_screen.dart';
+import '../../widgets/app_form_field.dart';
+import '../../widgets/app_button.dart';
+import '../../stores/settings_store.dart';
+
+class OnboardingIncomeScreen extends StatefulWidget {
+  const OnboardingIncomeScreen({super.key});
+
+  @override
+  State<OnboardingIncomeScreen> createState() => _OnboardingIncomeScreenState();
+}
+
+class _OnboardingIncomeScreenState extends State<OnboardingIncomeScreen> {
+  String _incomeText = '';
+
+  void _handleContinue() {
+    final income = double.tryParse(_incomeText);
+    if (income != null) {
+      context.read<SettingsStore>().setMonthlyIncomeEstimate(income);
+    }
+    context.push('/onboarding/recurring');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppScreen(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: AppSpacing.xl),
+          const Text('Estimate your monthly income', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+          const SizedBox(height: AppSpacing.sm),
+          const Text('This helps calculate your Safe to Spend figure.', style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+          const SizedBox(height: AppSpacing.xl),
+          AppFormField(
+            label: 'Monthly income (J\$)',
+            value: _incomeText,
+            onChanged: (v) => setState(() => _incomeText = v),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            placeholder: '0.00',
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          AppButton(label: 'Continue', onPressed: _incomeText.isNotEmpty ? _handleContinue : null),
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Create the recurring bills screen (skippable)**
+
+Create `lib/screens/onboarding/recurring_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/app_screen.dart';
+import '../../widgets/app_form_field.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_card.dart';
+import '../../widgets/list_row.dart';
+import '../../stores/recurring_store.dart';
+import '../../stores/accounts_store.dart';
+import '../../stores/categories_store.dart';
+
+class OnboardingRecurringScreen extends StatefulWidget {
+  const OnboardingRecurringScreen({super.key});
+
+  @override
+  State<OnboardingRecurringScreen> createState() => _OnboardingRecurringScreenState();
+}
+
+class _OnboardingRecurringScreenState extends State<OnboardingRecurringScreen> {
+  String _name = '';
+  String _amountText = '';
+
+  void _handleAdd(RecurringStore store, AccountsStore accountsStore, CategoriesStore categoriesStore) {
+    final amount = double.tryParse(_amountText);
+    if (_name.isEmpty || amount == null || accountsStore.accounts.isEmpty || categoriesStore.categories.isEmpty) return;
+    store.addRule(
+      name: _name,
+      amount: amount,
+      frequency: 'monthly',
+      accountId: accountsStore.accounts[0].id,
+      categoryId: categoriesStore.categories[0].id,
+      nextDueDate: DateTime.now().toIso8601String(),
+    );
+    setState(() {
+      _name = '';
+      _amountText = '';
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final recurringStore = context.watch<RecurringStore>();
+    final accountsStore = context.watch<AccountsStore>();
+    final categoriesStore = context.watch<CategoriesStore>();
+    final rules = recurringStore.rules;
+
+    return AppScreen(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: AppSpacing.xl),
+          const Text('Recurring bills', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+          const SizedBox(height: AppSpacing.sm),
+          const Text('Add any regular bills. You can skip this and add them later.', style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+          const SizedBox(height: AppSpacing.xl),
+          if (rules.isNotEmpty)
+            AppCard(
+              margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+              child: Column(
+                children: [
+                  for (var i = 0; i < rules.length; i++)
+                    ListRow(icon: const Icon(LucideIcons.repeat, size: 16, color: AppColors.textSecondary), title: rules[i].name, amount: -rules[i].amount, isLast: i == rules.length - 1),
+                ],
+              ),
+            ),
+          AppFormField(label: 'Bill name', value: _name, onChanged: (v) => setState(() => _name = v), placeholder: 'e.g. Rent'),
+          const SizedBox(height: AppSpacing.md),
+          AppFormField(
+            label: 'Amount (J\$)',
+            value: _amountText,
+            onChanged: (v) => setState(() => _amountText = v),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppButton(
+            label: 'Add Bill',
+            variant: AppButtonVariant.secondary,
+            onPressed: (_name.isNotEmpty && _amountText.isNotEmpty) ? () => _handleAdd(recurringStore, accountsStore, categoriesStore) : null,
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          AppButton(label: 'Continue', onPressed: () => context.push('/onboarding/goals')),
+        ],
+      ),
+    );
+  }
+}
+```
+Note this screen is "skippable" per spec: unlike the accounts step, "Continue" here is never disabled — a user can proceed with zero recurring rules.
+
+- [ ] **Step 3: Register both routes in `lib/app_router.dart`**
+
+Add the imports near the other onboarding screen imports:
+```dart
+import 'screens/onboarding/income_screen.dart';
+import 'screens/onboarding/recurring_screen.dart';
+```
+Then add these two lines under `// ONBOARDING ROUTES`, after the accounts route:
+```dart
+      GoRoute(path: '/onboarding/income', builder: (context, state) => const OnboardingIncomeScreen()),
+      GoRoute(path: '/onboarding/recurring', builder: (context, state) => const OnboardingRecurringScreen()),
+```
+
+- [ ] **Step 4: Verify in the browser**
+
+Walk through Welcome → Add Account → Income (enter a number, Continue) → Recurring (tap Continue without adding a bill — should proceed).
+Expected: no errors; income screen requires a value; recurring screen does not.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add lib/screens/onboarding/income_screen.dart lib/screens/onboarding/recurring_screen.dart lib/app_router.dart
+git commit -m "feat: build onboarding income estimate and skippable recurring bills screens"
+```
+
+---
+
+### Task 16: Onboarding — Choose Goals + Done
+
+**Files:**
+- Create: `lib/screens/onboarding/goals_screen.dart`, `lib/screens/onboarding/done_screen.dart`
+- Modify: `lib/app_router.dart` (register both routes)
+
+**Interfaces:**
+- Consumes: `GoalsStore` from Task 8; `SettingsStore.setHasCompletedOnboarding` from Task 8; `AppScreen`/`AppFormField`/`AppButton`/`AppCard`/`ListRow` from Tasks 10–12.
+- Produces: completes the onboarding stack — `done_screen.dart` sets `hasCompletedOnboarding = true` and navigates to `/home` (`context.go`, replacing history so back doesn't return to onboarding), closing the loop back to `app_router.dart`'s redirect logic (Task 13).
+
+- [ ] **Step 1: Create the goals selection screen**
+
+Create `lib/screens/onboarding/goals_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/app_screen.dart';
+import '../../widgets/app_form_field.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_card.dart';
+import '../../widgets/list_row.dart';
+import '../../stores/goals_store.dart';
+
+class OnboardingGoalsScreen extends StatefulWidget {
+  const OnboardingGoalsScreen({super.key});
+
+  @override
+  State<OnboardingGoalsScreen> createState() => _OnboardingGoalsScreenState();
+}
+
+class _OnboardingGoalsScreenState extends State<OnboardingGoalsScreen> {
+  String _name = '';
+  String _targetText = '';
+
+  void _handleAdd(GoalsStore store) {
+    final target = double.tryParse(_targetText);
+    if (_name.isEmpty || target == null) return;
+    store.addGoal(name: _name, icon: 'target', targetAmount: target);
+    setState(() {
+      _name = '';
+      _targetText = '';
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final goalsStore = context.watch<GoalsStore>();
+    final goals = goalsStore.goals;
+
+    return AppScreen(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: AppSpacing.xl),
+          const Text('Choose your goals', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+          const SizedBox(height: AppSpacing.sm),
+          const Text('Set savings goals to work toward. Optional — you can add these later too.', style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+          const SizedBox(height: AppSpacing.xl),
+          if (goals.isNotEmpty)
+            AppCard(
+              margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+              child: Column(
+                children: [
+                  for (var i = 0; i < goals.length; i++)
+                    ListRow(icon: const Icon(LucideIcons.target, size: 16, color: AppColors.textSecondary), title: goals[i].name, amount: goals[i].targetAmount, isLast: i == goals.length - 1),
+                ],
+              ),
+            ),
+          AppFormField(label: 'Goal name', value: _name, onChanged: (v) => setState(() => _name = v), placeholder: 'e.g. Emergency Fund'),
+          const SizedBox(height: AppSpacing.md),
+          AppFormField(
+            label: 'Target amount (J\$)',
+            value: _targetText,
+            onChanged: (v) => setState(() => _targetText = v),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppButton(
+            label: 'Add Goal',
+            variant: AppButtonVariant.secondary,
+            onPressed: (_name.isNotEmpty && _targetText.isNotEmpty) ? () => _handleAdd(goalsStore) : null,
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          AppButton(label: 'Continue', onPressed: () => context.push('/onboarding/done')),
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Create the Done screen**
+
+Create `lib/screens/onboarding/done_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/app_screen.dart';
+import '../../widgets/app_button.dart';
+import '../../stores/settings_store.dart';
+
+class OnboardingDoneScreen extends StatelessWidget {
+  const OnboardingDoneScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppScreen(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: AppSpacing.xxxl),
+          const Text("You're all set", style: TextStyle(color: AppColors.text, fontSize: 28, fontWeight: FontWeight.w800)),
+          const SizedBox(height: AppSpacing.sm),
+          const Text('Your finance tracker is ready to go.', style: TextStyle(color: AppColors.textSecondary, fontSize: 15)),
+          const SizedBox(height: AppSpacing.xxxl),
+          AppButton(
+            label: 'Go to Home',
+            onPressed: () {
+              context.read<SettingsStore>().setHasCompletedOnboarding(true);
+              context.go('/home');
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 3: Register both routes in `lib/app_router.dart`**
+
+Add the imports near the other onboarding screen imports:
+```dart
+import 'screens/onboarding/goals_screen.dart';
+import 'screens/onboarding/done_screen.dart';
+```
+Then add these two lines under `// ONBOARDING ROUTES`, after the recurring route:
+```dart
+      GoRoute(path: '/onboarding/goals', builder: (context, state) => const OnboardingGoalsScreen()),
+      GoRoute(path: '/onboarding/done', builder: (context, state) => const OnboardingDoneScreen()),
+```
+
+- [ ] **Step 4: Verify the full onboarding flow end-to-end in the browser**
+
+Walk through all 6 steps: Welcome → Add Account → Income → Recurring (skip) → Goals (skip) → Done → tap "Go to Home".
+Expected: lands on the Home tab stub ("Home — built in Task 17"); reloading the page now skips onboarding entirely and goes straight to the tab stub, proving `hasCompletedOnboarding` persisted to `shared_preferences`/`localStorage`.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add lib/screens/onboarding/goals_screen.dart lib/screens/onboarding/done_screen.dart lib/app_router.dart
+git commit -m "feat: build onboarding goals selection and done screens, completing the onboarding flow"
+```
