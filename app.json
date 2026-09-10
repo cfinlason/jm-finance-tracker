@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "JM Finance Tracker",
+    "slug": "jm-finance-tracker",
+    "scheme": "jmfinancetracker",
+    "userInterfaceStyle": "dark",
+    "plugins": ["expo-router"],
+    "ios": { "supportsTablet": false },
+    "web": { "bundler": "metro" }
+  }
+}
