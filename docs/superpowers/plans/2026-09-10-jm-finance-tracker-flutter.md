@@ -1931,3 +1931,274 @@ Expected: PASS, all suites from Tasks 4–9 (money, date_utils, safe_to_spend, d
 git add lib/logic/transaction_actions.dart test/logic/transaction_actions_test.dart
 git commit -m "feat: add transaction actions that keep account balances and goal progress in sync"
 ```
+
+---
+
+### Task 10: Icon mapping + shared widgets part 1 (`PhoneFrame`, `AppScreen`, `AppCard`, `IconChip`, `CategoryIcon`, `ListRow`)
+
+**Files:**
+- Create: `lib/utils/icon_map.dart`
+- Create: `lib/widgets/phone_frame.dart`, `lib/widgets/app_screen.dart`, `lib/widgets/app_card.dart`, `lib/widgets/icon_chip.dart`, `lib/widgets/category_icon.dart`, `lib/widgets/list_row.dart`
+
+**Interfaces:**
+- Consumes: `AppColors`/`AppSpacing`/`AppRadius` from `lib/theme/app_theme.dart`; `formatMoney` from `lib/utils/money.dart`.
+- Produces: `IconData getIcon(String name)`; `PhoneFrame({required Widget child})`; `AppScreen({required Widget child, bool scroll, bool padded})`; `AppCard({required Widget child, bool emphasis, EdgeInsetsGeometry? margin})`; `IconChip({required Widget child, double size})`; `CategoryIcon({required String name, double size})`; `ListRow({required Widget icon, required String title, String? caption, double? amount, bool showChevron, VoidCallback? onTap, bool isLast})` — used by every screen from Task 14 onward.
+
+- [ ] **Step 1: Create the icon name → Lucide `IconData` map**
+
+Create `lib/utils/icon_map.dart`:
+```dart
+import 'package:flutter/widgets.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+
+final Map<String, IconData> iconMap = {
+  'utensils': LucideIcons.utensils,
+  'car': LucideIcons.car,
+  'receipt': LucideIcons.receipt,
+  'shopping-bag': LucideIcons.shoppingBag,
+  'film': LucideIcons.film,
+  'heart-pulse': LucideIcons.heartPulse,
+  'home': LucideIcons.home,
+  'wallet': LucideIcons.wallet,
+  'arrow-left-right': LucideIcons.arrowLeftRight,
+  'more-horizontal': LucideIcons.moreHorizontal,
+  'target': LucideIcons.target,
+};
+
+IconData getIcon(String name) => iconMap[name] ?? LucideIcons.moreHorizontal;
+```
+If the installed `lucide_icons` version names any of these constants differently, use the closest equivalent available in that version and note the substitution in your report — do not block the task on an exact identifier match.
+
+- [ ] **Step 2: Create `PhoneFrame`**
+
+Create `lib/widgets/phone_frame.dart`:
+```dart
+import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
+
+/// Wraps the entire app once (in main.dart) so it always renders inside a
+/// fixed max-width phone-sized shell, centered, regardless of browser
+/// window size — per design spec §2's phone-size constraint.
+class PhoneFrame extends StatelessWidget {
+  final Widget child;
+  const PhoneFrame({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: AppColors.bg,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 430),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 3: Create `AppScreen`**
+
+Create `lib/widgets/app_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
+
+/// Per-screen wrapper: safe-area handling, optional scrolling, optional
+/// horizontal/bottom padding. Every screen body renders inside this.
+class AppScreen extends StatelessWidget {
+  final Widget child;
+  final bool scroll;
+  final bool padded;
+
+  const AppScreen({super.key, required this.child, this.scroll = true, this.padded = true});
+
+  @override
+  Widget build(BuildContext context) {
+    final content = padded
+        ? Padding(padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.xxxl), child: child)
+        : child;
+
+    return Container(
+      color: AppColors.bg,
+      child: SafeArea(
+        child: scroll ? SingleChildScrollView(child: content) : content,
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 4: Create `AppCard`**
+
+Create `lib/widgets/app_card.dart`:
+```dart
+import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
+
+/// Emphasis variant: 2px accent top rule + surface fill, per design.md.txt §7
+/// (hero, debt-projection cards). Normal variant: plain 1px border.
+class AppCard extends StatelessWidget {
+  final Widget child;
+  final bool emphasis;
+  final EdgeInsetsGeometry? margin;
+
+  const AppCard({super.key, required this.child, this.emphasis = false, this.margin});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: margin,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: emphasis ? AppColors.surface : Colors.transparent,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: emphasis
+            ? const Border(
+                top: BorderSide(color: AppColors.accent, width: 2),
+                left: BorderSide(color: AppColors.border, width: 1),
+                right: BorderSide(color: AppColors.border, width: 1),
+                bottom: BorderSide(color: AppColors.border, width: 1),
+              )
+            : Border.all(color: AppColors.border, width: 1),
+      ),
+      child: child,
+    );
+  }
+}
+```
+
+- [ ] **Step 5: Create `IconChip`**
+
+Create `lib/widgets/icon_chip.dart`:
+```dart
+import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
+
+class IconChip extends StatelessWidget {
+  final Widget child;
+  final double size;
+
+  const IconChip({super.key, required this.child, this.size = 34});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(color: AppColors.surfaceMuted, borderRadius: BorderRadius.circular(AppRadius.sm)),
+      alignment: Alignment.center,
+      child: child,
+    );
+  }
+}
+```
+
+- [ ] **Step 6: Create `CategoryIcon`**
+
+Create `lib/widgets/category_icon.dart`:
+```dart
+import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
+import '../utils/icon_map.dart';
+
+class CategoryIcon extends StatelessWidget {
+  final String name;
+  final double size;
+
+  const CategoryIcon({super.key, required this.name, this.size = 16});
+
+  @override
+  Widget build(BuildContext context) {
+    return Icon(getIcon(name), size: size, color: AppColors.textSecondary);
+  }
+}
+```
+
+- [ ] **Step 7: Create `ListRow`**
+
+Create `lib/widgets/list_row.dart`:
+```dart
+import 'dart:ui';
+import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
+import '../utils/money.dart';
+import 'icon_chip.dart';
+
+class ListRow extends StatelessWidget {
+  final Widget icon;
+  final String title;
+  final String? caption;
+  final double? amount;
+  final bool showChevron;
+  final VoidCallback? onTap;
+  final bool isLast;
+
+  const ListRow({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.caption,
+    this.amount,
+    this.showChevron = false,
+    this.onTap,
+    this.isLast = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final row = Container(
+      decoration: BoxDecoration(
+        border: isLast ? null : const Border(bottom: BorderSide(color: AppColors.borderHairline, width: 1)),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md2),
+      child: Row(
+        children: [
+          IconChip(child: icon),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                if (caption != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(caption!, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                  ),
+              ],
+            ),
+          ),
+          if (amount != null)
+            Text(
+              '${amount! > 0 ? '+' : ''}${formatMoney(amount!)}',
+              style: TextStyle(
+                color: amount! > 0 ? AppColors.accent : AppColors.text,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          if (showChevron)
+            const Padding(padding: EdgeInsets.only(left: AppSpacing.sm), child: Icon(Icons.chevron_right, size: 18, color: AppColors.textMuted)),
+        ],
+      ),
+    );
+
+    return onTap != null ? InkWell(onTap: onTap, child: row) : row;
+  }
+}
+```
+
+- [ ] **Step 8: Verify everything compiles**
+
+Run: `flutter analyze lib/utils/icon_map.dart lib/widgets`
+Expected: `No issues found!`
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add lib/utils/icon_map.dart lib/widgets/phone_frame.dart lib/widgets/app_screen.dart lib/widgets/app_card.dart lib/widgets/icon_chip.dart lib/widgets/category_icon.dart lib/widgets/list_row.dart
+git commit -m "feat: add icon map and phone frame/screen/card/list-row widgets"
+```
