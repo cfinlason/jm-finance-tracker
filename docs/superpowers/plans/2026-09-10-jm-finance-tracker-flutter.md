@@ -3573,6 +3573,7 @@ git commit -m "feat: build onboarding goals selection and done screens, completi
 
 Overwrite `lib/screens/home_screen.dart`:
 ```dart
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -3628,7 +3629,10 @@ class HomeScreen extends StatelessWidget {
               children: [
                 const Text('SAFE TO SPEND', style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.1)),
                 const SizedBox(height: AppSpacing.sm),
-                Text(formatMoney(safeToSpend), style: const TextStyle(color: AppColors.text, fontSize: 60, fontWeight: FontWeight.w800)),
+                Text(
+                  formatMoney(safeToSpend),
+                  style: const TextStyle(color: AppColors.text, fontSize: 60, fontWeight: FontWeight.w800, fontFeatures: [FontFeature.tabularFigures()]),
+                ),
               ],
             ),
           ),
@@ -4138,6 +4142,7 @@ git commit -m "feat: build Add/Edit Transaction screen with delete confirmation"
 
 Overwrite `lib/screens/insights_screen.dart`:
 ```dart
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -4230,9 +4235,15 @@ class InsightsScreen extends StatelessWidget {
                     child: Row(
                       children: [
                         Expanded(child: Text(bucket.label, style: const TextStyle(color: AppColors.textMuted, fontSize: 12))),
-                        Text('+${formatMoney(bucket.income)}', style: const TextStyle(color: AppColors.accent, fontSize: 13, fontWeight: FontWeight.w700)),
+                        Text(
+                          '+${formatMoney(bucket.income)}',
+                          style: const TextStyle(color: AppColors.accent, fontSize: 13, fontWeight: FontWeight.w700, fontFeatures: [FontFeature.tabularFigures()]),
+                        ),
                         const SizedBox(width: AppSpacing.md),
-                        Text('-${formatMoney(bucket.spending)}', style: const TextStyle(color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w700)),
+                        Text(
+                          '-${formatMoney(bucket.spending)}',
+                          style: const TextStyle(color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w700, fontFeatures: [FontFeature.tabularFigures()]),
+                        ),
                       ],
                     ),
                   ),
@@ -4288,7 +4299,7 @@ class _InsightRow extends StatelessWidget {
               ],
             ),
           ),
-          Text(amount, style: const TextStyle(color: AppColors.text, fontSize: 14, fontWeight: FontWeight.w700)),
+          Text(amount, style: const TextStyle(color: AppColors.text, fontSize: 14, fontWeight: FontWeight.w700, fontFeatures: [FontFeature.tabularFigures()])),
         ],
       ),
     );
@@ -4325,6 +4336,7 @@ git commit -m "feat: build Insights screen with category breakdown, trend, and t
 
 Overwrite `lib/screens/goals_list_screen.dart`:
 ```dart
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -4376,7 +4388,10 @@ class GoalsListScreen extends StatelessWidget {
                       const SizedBox(height: AppSpacing.sm),
                       AppProgressBar(progress: g.targetAmount == 0 ? 0 : g.currentAmount / g.targetAmount),
                       const SizedBox(height: AppSpacing.sm),
-                      Text('${formatMoney(g.currentAmount)} of ${formatMoney(g.targetAmount)}', style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+                      Text(
+                        '${formatMoney(g.currentAmount)} of ${formatMoney(g.targetAmount)}',
+                        style: const TextStyle(color: AppColors.textMuted, fontSize: 13, fontFeatures: [FontFeature.tabularFigures()]),
+                      ),
                     ],
                   ),
                 ),
@@ -4392,6 +4407,7 @@ class GoalsListScreen extends StatelessWidget {
 
 Create `lib/screens/goal_detail_screen.dart`:
 ```dart
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -4511,7 +4527,10 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
           const SizedBox(height: AppSpacing.sm),
           AppProgressBar(progress: resolvedGoal.targetAmount == 0 ? 0 : resolvedGoal.currentAmount / resolvedGoal.targetAmount),
           const SizedBox(height: AppSpacing.sm),
-          Text('${formatMoney(resolvedGoal.currentAmount)} of ${formatMoney(resolvedGoal.targetAmount)}', style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+          Text(
+            '${formatMoney(resolvedGoal.currentAmount)} of ${formatMoney(resolvedGoal.targetAmount)}',
+            style: const TextStyle(color: AppColors.textMuted, fontSize: 13, fontFeatures: [FontFeature.tabularFigures()]),
+          ),
           const SizedBox(height: AppSpacing.xl),
           AppFormField(
             label: 'Add contribution (J\$)',
@@ -4568,6 +4587,7 @@ git commit -m "feat: build Goals list and Goal detail/create screen with contrib
 
 Create `lib/screens/debt_screen.dart`:
 ```dart
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -4628,7 +4648,10 @@ class _DebtScreenState extends State<DebtScreen> {
                 children: [
                   const Text('TOTAL OWED', style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.1)),
                   const SizedBox(height: AppSpacing.sm),
-                  Text(formatMoney(totalOwed), style: const TextStyle(color: AppColors.text, fontSize: 32, fontWeight: FontWeight.w800)),
+                  Text(
+                    formatMoney(totalOwed),
+                    style: const TextStyle(color: AppColors.text, fontSize: 32, fontWeight: FontWeight.w800, fontFeatures: [FontFeature.tabularFigures()]),
+                  ),
                 ],
               ),
             ),
@@ -4669,7 +4692,10 @@ class _DebtScreenState extends State<DebtScreen> {
                         children: [
                           const Text('TOTAL INTEREST', style: TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.w600)),
                           const SizedBox(height: 4),
-                          Text(formatMoney(result.totalInterest), style: const TextStyle(color: AppColors.accent, fontSize: 22, fontWeight: FontWeight.w800)),
+                          Text(
+                            formatMoney(result.totalInterest),
+                            style: const TextStyle(color: AppColors.accent, fontSize: 22, fontWeight: FontWeight.w800, fontFeatures: [FontFeature.tabularFigures()]),
+                          ),
                         ],
                       ),
                     ],
@@ -4687,7 +4713,10 @@ class _DebtScreenState extends State<DebtScreen> {
                     children: [
                       Text(d.name, style: const TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
                       const SizedBox(height: 4),
-                      Text('${formatMoney(d.balance)} · ${d.interestRate}% APR · Min ${formatMoney(d.minPayment)}', style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                      Text(
+                        '${formatMoney(d.balance)} · ${d.interestRate}% APR · Min ${formatMoney(d.minPayment)}',
+                        style: const TextStyle(color: AppColors.textMuted, fontSize: 12, fontFeatures: [FontFeature.tabularFigures()]),
+                      ),
                     ],
                   ),
                 ),
@@ -4856,6 +4885,7 @@ git commit -m "feat: build Debt overview with snowball/avalanche projection and 
 
 Create `lib/screens/cash_flow_screen.dart`:
 ```dart
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -4905,7 +4935,10 @@ class CashFlowScreen extends StatelessWidget {
               children: [
                 const Text('CURRENT BALANCE', style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.1)),
                 const SizedBox(height: AppSpacing.sm),
-                Text(formatMoney(startBalance), style: const TextStyle(color: AppColors.text, fontSize: 28, fontWeight: FontWeight.w800)),
+                Text(
+                  formatMoney(startBalance),
+                  style: const TextStyle(color: AppColors.text, fontSize: 28, fontWeight: FontWeight.w800, fontFeatures: [FontFeature.tabularFigures()]),
+                ),
               ],
             ),
           ),
@@ -4928,8 +4961,14 @@ class CashFlowScreen extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text('-${formatMoney(item.rule.amount)}', style: const TextStyle(color: AppColors.text, fontSize: 14, fontWeight: FontWeight.w700)),
-                        Text('Bal: ${formatMoney(item.runningBalance)}', style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                        Text(
+                          '-${formatMoney(item.rule.amount)}',
+                          style: const TextStyle(color: AppColors.text, fontSize: 14, fontWeight: FontWeight.w700, fontFeatures: [FontFeature.tabularFigures()]),
+                        ),
+                        Text(
+                          'Bal: ${formatMoney(item.runningBalance)}',
+                          style: const TextStyle(color: AppColors.textMuted, fontSize: 11, fontFeatures: [FontFeature.tabularFigures()]),
+                        ),
                       ],
                     ),
                   ],
