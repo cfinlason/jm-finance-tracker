@@ -4122,3 +4122,432 @@ Expected: all three flows work with no errors.
 git add lib/screens/transaction_edit_screen.dart lib/app_router.dart
 git commit -m "feat: build Add/Edit Transaction screen with delete confirmation"
 ```
+
+---
+
+### Task 20: Insights screen
+
+**Files:**
+- Modify: `lib/screens/insights_screen.dart` (replace Task 13's stub)
+
+**Interfaces:**
+- Consumes: `categoryTotals`, `incomeVsSpendingTrend`, `topTransactions` (Task 7); `addMonths` (Task 4); `TransactionsStore`, `CategoriesStore` (Task 8); `AppScreen`, `AppCard`, `EmptyState`, `IconChip`, `CategoryIcon` (Tasks 10–12).
+- Produces: the Insights tab — category breakdown with % change, weekly income-vs-spending trend, top 5 transactions.
+
+- [ ] **Step 1: Replace the Insights screen**
+
+Overwrite `lib/screens/insights_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import '../theme/app_theme.dart';
+import '../models/models.dart';
+import '../widgets/app_screen.dart';
+import '../widgets/app_card.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/icon_chip.dart';
+import '../widgets/category_icon.dart';
+import '../utils/money.dart';
+import '../utils/date_utils.dart' as date_utils;
+import '../logic/insights.dart';
+import '../stores/transactions_store.dart';
+import '../stores/categories_store.dart';
+
+class InsightsScreen extends StatelessWidget {
+  const InsightsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final transactions = context.watch<TransactionsStore>().transactions;
+    final categories = context.watch<CategoriesStore>().categories;
+
+    if (transactions.isEmpty) {
+      return AppScreen(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Insights', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+            const SizedBox(height: AppSpacing.lg),
+            const EmptyState(
+              icon: IconChip(child: Icon(LucideIcons.pieChart, size: 16, color: AppColors.textMuted)),
+              message: 'Add transactions to see insights.',
+            ),
+          ],
+        ),
+      );
+    }
+
+    final now = DateTime.now();
+    final periodStart = date_utils.addMonths(now, -1);
+    final previousPeriodStart = date_utils.addMonths(now, -2);
+
+    final totals = categoryTotals(transactions, periodStart, now, previousPeriodStart, periodStart);
+    final trend = incomeVsSpendingTrend(transactions, 'week', 6, now);
+    final top5 = topTransactions(transactions, periodStart, now, n: 5);
+
+    Category? categoryFor(String id) {
+      for (final c in categories) {
+        if (c.id == id) return c;
+      }
+      return null;
+    }
+
+    return AppScreen(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Insights', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+          const SizedBox(height: AppSpacing.lg),
+          const Text('Category Breakdown', style: TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w700)),
+          const SizedBox(height: AppSpacing.sm),
+          AppCard(
+            margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+            child: Column(
+              children: [
+                for (var i = 0; i < totals.length; i++)
+                  _InsightRow(
+                    icon: CategoryIcon(name: categoryFor(totals[i].categoryId)?.icon ?? 'more-horizontal'),
+                    title: categoryFor(totals[i].categoryId)?.name ?? 'Uncategorized',
+                    subtitle: totals[i].percentChange != null
+                        ? '${totals[i].percentChange! > 0 ? '+' : ''}${totals[i].percentChange}% vs last period'
+                        : null,
+                    amount: formatMoney(totals[i].total),
+                    isLast: i == totals.length - 1,
+                  ),
+              ],
+            ),
+          ),
+          const Text('Weekly Trend', style: TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w700)),
+          const SizedBox(height: AppSpacing.sm),
+          AppCard(
+            margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+            child: Column(
+              children: [
+                for (final bucket in trend)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                    child: Row(
+                      children: [
+                        Expanded(child: Text(bucket.label, style: const TextStyle(color: AppColors.textMuted, fontSize: 12))),
+                        Text('+${formatMoney(bucket.income)}', style: const TextStyle(color: AppColors.accent, fontSize: 13, fontWeight: FontWeight.w700)),
+                        const SizedBox(width: AppSpacing.md),
+                        Text('-${formatMoney(bucket.spending)}', style: const TextStyle(color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const Text('Top Transactions', style: TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w700)),
+          const SizedBox(height: AppSpacing.sm),
+          AppCard(
+            child: Column(
+              children: [
+                for (var i = 0; i < top5.length; i++)
+                  _InsightRow(
+                    icon: CategoryIcon(name: categoryFor(top5[i].categoryId)?.icon ?? 'more-horizontal'),
+                    title: categoryFor(top5[i].categoryId)?.name ?? 'Uncategorized',
+                    subtitle: null,
+                    amount: formatMoney(top5[i].amount),
+                    isLast: i == top5.length - 1,
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InsightRow extends StatelessWidget {
+  final Widget icon;
+  final String title;
+  final String? subtitle;
+  final String amount;
+  final bool isLast;
+
+  const _InsightRow({required this.icon, required this.title, this.subtitle, required this.amount, required this.isLast});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(border: isLast ? null : const Border(bottom: BorderSide(color: AppColors.borderHairline, width: 1))),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm2),
+      child: Row(
+        children: [
+          IconChip(child: icon),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(color: AppColors.text, fontSize: 14, fontWeight: FontWeight.w600)),
+                if (subtitle != null) Text(subtitle!, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+              ],
+            ),
+          ),
+          Text(amount, style: const TextStyle(color: AppColors.text, fontSize: 14, fontWeight: FontWeight.w700)),
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Verify in the browser**
+
+With zero transactions: Insights shows the empty state. After adding 2–3 transactions in different categories (via Task 19's screen): Category Breakdown lists them sorted by total descending, Weekly Trend shows 6 week buckets, Top Transactions lists up to 5 sorted by absolute amount.
+Expected: no errors; percent-change text only appears where a previous-period value exists.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add lib/screens/insights_screen.dart
+git commit -m "feat: build Insights screen with category breakdown, trend, and top transactions"
+```
+
+---
+
+### Task 21: Goals list + Goal detail/create screen
+
+**Files:**
+- Modify: `lib/screens/goals_list_screen.dart` (replace Task 13's stub)
+- Create: `lib/screens/goal_detail_screen.dart`
+- Modify: `lib/app_router.dart` (register the pushed route)
+
+**Interfaces:**
+- Consumes: `GoalsStore`, `AccountsStore`, `CategoriesStore`, `TransactionsStore` (Task 8); `TransactionActions` (Task 9); `AppScreen`, `AppCard`, `AppProgressBar`, `EmptyState`, `IconChip`, `AppFormField`, `AppButton` (Tasks 10–12); `formatMoney` (Task 4).
+- Produces: the Goals tab (list + progress bars) and a single route `/goal/:id` — `id == 'new'` creates a goal, any other `id` shows progress + an "Add contribution" action that creates a `goal_contribution` transaction via `TransactionActions`.
+
+- [ ] **Step 1: Replace the Goals list screen**
+
+Overwrite `lib/screens/goals_list_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import '../theme/app_theme.dart';
+import '../widgets/app_screen.dart';
+import '../widgets/app_card.dart';
+import '../widgets/app_progress_bar.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/icon_chip.dart';
+import '../utils/money.dart';
+import '../stores/goals_store.dart';
+
+class GoalsListScreen extends StatelessWidget {
+  const GoalsListScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final goals = context.watch<GoalsStore>().goals;
+
+    return AppScreen(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Goals', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+              IconButton(icon: const Icon(LucideIcons.plus, color: AppColors.accent), onPressed: () => context.push('/goal/new')),
+            ],
+          ),
+          if (goals.isEmpty)
+            EmptyState(
+              icon: const IconChip(child: Icon(LucideIcons.target, size: 16, color: AppColors.textMuted)),
+              message: 'No goals yet.',
+              ctaLabel: 'Add Goal',
+              onPressCta: () => context.push('/goal/new'),
+            )
+          else
+            for (final g in goals)
+              GestureDetector(
+                onTap: () => context.push('/goal/${g.id}'),
+                child: AppCard(
+                  margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(g.name, style: const TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: AppSpacing.sm),
+                      AppProgressBar(progress: g.targetAmount == 0 ? 0 : g.currentAmount / g.targetAmount),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text('${formatMoney(g.currentAmount)} of ${formatMoney(g.targetAmount)}', style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+                    ],
+                  ),
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Create the Goal detail/create screen**
+
+Create `lib/screens/goal_detail_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../theme/app_theme.dart';
+import '../models/models.dart';
+import '../widgets/app_screen.dart';
+import '../widgets/app_form_field.dart';
+import '../widgets/app_button.dart';
+import '../widgets/app_progress_bar.dart';
+import '../utils/money.dart';
+import '../stores/goals_store.dart';
+import '../stores/accounts_store.dart';
+import '../stores/categories_store.dart';
+import '../stores/transactions_store.dart';
+import '../logic/transaction_actions.dart';
+
+class GoalDetailScreen extends StatefulWidget {
+  final String id;
+  const GoalDetailScreen({super.key, required this.id});
+
+  @override
+  State<GoalDetailScreen> createState() => _GoalDetailScreenState();
+}
+
+class _GoalDetailScreenState extends State<GoalDetailScreen> {
+  String _name = '';
+  String _targetText = '';
+  String _contribution = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final goalsStore = context.watch<GoalsStore>();
+    final isNew = widget.id == 'new';
+
+    if (isNew) {
+      return AppScreen(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('New Goal', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+            const SizedBox(height: AppSpacing.lg),
+            AppFormField(label: 'Goal name', value: _name, onChanged: (v) => setState(() => _name = v), placeholder: 'e.g. Emergency Fund'),
+            const SizedBox(height: AppSpacing.md),
+            AppFormField(
+              label: 'Target amount (J\$)',
+              value: _targetText,
+              onChanged: (v) => setState(() => _targetText = v),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              placeholder: '0.00',
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            AppButton(
+              label: 'Create Goal',
+              onPressed: (_name.isNotEmpty && _targetText.isNotEmpty)
+                  ? () {
+                      final target = double.tryParse(_targetText);
+                      if (target == null || target <= 0) return;
+                      goalsStore.addGoal(name: _name, icon: 'target', targetAmount: target);
+                      context.pop();
+                    }
+                  : null,
+            ),
+          ],
+        ),
+      );
+    }
+
+    Goal? goal;
+    for (final g in goalsStore.goals) {
+      if (g.id == widget.id) {
+        goal = g;
+        break;
+      }
+    }
+
+    if (goal == null) {
+      return const AppScreen(child: Text('Goal not found', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)));
+    }
+
+    final accounts = context.watch<AccountsStore>().accounts;
+    final categories = context.watch<CategoriesStore>().categories;
+    Category? transferCategory;
+    for (final c in categories) {
+      if (c.name == 'Transfer') {
+        transferCategory = c;
+        break;
+      }
+    }
+
+    final actions = TransactionActions(
+      accountsStore: context.read<AccountsStore>(),
+      transactionsStore: context.read<TransactionsStore>(),
+      goalsStore: goalsStore,
+    );
+    final resolvedGoal = goal;
+
+    void handleAddContribution() {
+      final amount = double.tryParse(_contribution);
+      if (amount == null || amount <= 0 || accounts.isEmpty || transferCategory == null) return;
+      actions.createTransaction(
+        accountId: accounts[0].id,
+        categoryId: transferCategory!.id,
+        amount: -amount,
+        note: 'Contribution to ${resolvedGoal.name}',
+        date: DateTime.now().toIso8601String(),
+        type: 'goal_contribution',
+        goalId: resolvedGoal.id,
+      );
+      setState(() => _contribution = '');
+    }
+
+    return AppScreen(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(resolvedGoal.name, style: const TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+          const SizedBox(height: AppSpacing.sm),
+          AppProgressBar(progress: resolvedGoal.targetAmount == 0 ? 0 : resolvedGoal.currentAmount / resolvedGoal.targetAmount),
+          const SizedBox(height: AppSpacing.sm),
+          Text('${formatMoney(resolvedGoal.currentAmount)} of ${formatMoney(resolvedGoal.targetAmount)}', style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+          const SizedBox(height: AppSpacing.xl),
+          AppFormField(
+            label: 'Add contribution (J\$)',
+            value: _contribution,
+            onChanged: (v) => setState(() => _contribution = v),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            placeholder: '0.00',
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppButton(label: 'Add Contribution', onPressed: _contribution.isNotEmpty ? handleAddContribution : null),
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 3: Register the pushed route in `lib/app_router.dart`**
+
+Add the import near the other screen imports:
+```dart
+import 'screens/goal_detail_screen.dart';
+```
+Then add this line under `// PUSHED ROUTES` (one route handles both create and detail, same pattern as `/transaction/:id`):
+```dart
+      GoRoute(path: '/goal/:id', builder: (context, state) => GoalDetailScreen(id: state.pathParameters['id']!)),
+```
+
+- [ ] **Step 4: Verify the full create → contribute cycle in the browser**
+
+Tap "+" on Goals, create a goal with a target. Tap into it, add a contribution smaller than the target. Confirm the progress bar and amounts update, and the contribution shows up as a Transfer-category transaction on the Transactions screen.
+Expected: no errors; progress bar clamps at 100% if a contribution exceeds the target.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add lib/screens/goals_list_screen.dart lib/screens/goal_detail_screen.dart lib/app_router.dart
+git commit -m "feat: build Goals list and Goal detail/create screen with contributions"
+```
