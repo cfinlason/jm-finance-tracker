@@ -2699,3 +2699,348 @@ Expected: `No issues found!`
 git add lib/widgets/stat_figure.dart lib/widgets/empty_state.dart lib/widgets/loading_state.dart lib/widgets/app_form_field.dart lib/widgets/error_banner.dart
 git commit -m "feat: add stat figure, empty/loading state, form field, and error banner widgets"
 ```
+
+---
+
+### Task 13: Router + app shell (main.dart, app_router.dart, MainShell, hydration gate)
+
+**Files:**
+- Modify: `lib/main.dart` (replace Task 1's placeholder)
+- Create: `lib/app_router.dart`, `lib/widgets/main_shell.dart`
+- Create stub screens (fully built out by later tasks): `lib/screens/onboarding/welcome_screen.dart`, `lib/screens/home_screen.dart`, `lib/screens/transactions_screen.dart`, `lib/screens/insights_screen.dart`, `lib/screens/goals_list_screen.dart`, `lib/screens/more_screen.dart`
+
+**Interfaces:**
+- Consumes: all 7 stores + `ErrorBannerStore` from Task 8; `PhoneFrame`, `AppScreen`, `LoadingState`, `ErrorBanner` from Tasks 10–12.
+- Produces: the app now boots, hydrates all stores, and redirects to either `/onboarding/welcome` or the 5-tab shell (`/home`) depending on `hasCompletedOnboarding` — with a working bottom nav bar in place for Tasks 17–24 to fill in. Every later screen-adding task edits `lib/app_router.dart` to register its own route(s) inside this file's `routes:` list.
+
+- [ ] **Step 1: Create stub screens for the onboarding welcome route and the 5 tabs**
+
+Create `lib/screens/onboarding/welcome_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import '../../widgets/app_screen.dart';
+
+class WelcomeScreen extends StatelessWidget {
+  const WelcomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const AppScreen(child: Text('Welcome — built in Task 14'));
+  }
+}
+```
+
+Create `lib/screens/home_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import '../widgets/app_screen.dart';
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const AppScreen(child: Text('Home — built in Task 17'));
+  }
+}
+```
+
+Create `lib/screens/transactions_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import '../widgets/app_screen.dart';
+
+class TransactionsScreen extends StatelessWidget {
+  const TransactionsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const AppScreen(child: Text('Transactions — built in Task 18'));
+  }
+}
+```
+
+Create `lib/screens/insights_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import '../widgets/app_screen.dart';
+
+class InsightsScreen extends StatelessWidget {
+  const InsightsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const AppScreen(child: Text('Insights — built in Task 20'));
+  }
+}
+```
+
+Create `lib/screens/goals_list_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import '../widgets/app_screen.dart';
+
+class GoalsListScreen extends StatelessWidget {
+  const GoalsListScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const AppScreen(child: Text('Goals — built in Task 21'));
+  }
+}
+```
+
+Create `lib/screens/more_screen.dart`:
+```dart
+import 'package:flutter/material.dart';
+import '../widgets/app_screen.dart';
+
+class MoreScreen extends StatelessWidget {
+  const MoreScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const AppScreen(child: Text('More — built in Task 24'));
+  }
+}
+```
+
+- [ ] **Step 2: Create `MainShell` (bottom tab bar)**
+
+Create `lib/widgets/main_shell.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import '../theme/app_theme.dart';
+
+class MainShell extends StatelessWidget {
+  final StatefulNavigationShell navigationShell;
+  const MainShell({super.key, required this.navigationShell});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: navigationShell,
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(color: AppColors.bg, border: Border(top: BorderSide(color: AppColors.borderStrong, width: 1))),
+        child: SafeArea(
+          top: false,
+          child: BottomNavigationBar(
+            currentIndex: navigationShell.currentIndex,
+            onTap: (index) => navigationShell.goBranch(index, initialLocation: index == navigationShell.currentIndex),
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: AppColors.bg,
+            selectedItemColor: AppColors.accent,
+            unselectedItemColor: AppColors.textMuted,
+            selectedLabelStyle: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600),
+            unselectedLabelStyle: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600),
+            items: const [
+              BottomNavigationBarItem(icon: Icon(LucideIcons.home), label: 'HOME'),
+              BottomNavigationBarItem(icon: Icon(LucideIcons.list), label: 'TRANSACTIONS'),
+              BottomNavigationBarItem(icon: Icon(LucideIcons.pieChart), label: 'INSIGHTS'),
+              BottomNavigationBarItem(icon: Icon(LucideIcons.target), label: 'GOALS'),
+              BottomNavigationBarItem(icon: Icon(LucideIcons.menu), label: 'MORE'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 3: Create `app_router.dart`**
+
+Create `lib/app_router.dart`:
+```dart
+import 'package:flutter/widgets.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+
+import 'stores/settings_store.dart';
+import 'stores/accounts_store.dart';
+import 'stores/categories_store.dart';
+import 'stores/transactions_store.dart';
+import 'stores/recurring_store.dart';
+import 'stores/goals_store.dart';
+import 'stores/debts_store.dart';
+
+import 'screens/onboarding/welcome_screen.dart';
+import 'screens/home_screen.dart';
+import 'screens/transactions_screen.dart';
+import 'screens/insights_screen.dart';
+import 'screens/goals_list_screen.dart';
+import 'screens/more_screen.dart';
+
+import 'widgets/loading_state.dart';
+import 'widgets/main_shell.dart';
+
+bool _allHydrated(BuildContext context) {
+  return context.read<SettingsStore>().hasHydrated &&
+      context.read<AccountsStore>().hasHydrated &&
+      context.read<CategoriesStore>().hasHydrated &&
+      context.read<TransactionsStore>().hasHydrated &&
+      context.read<RecurringStore>().hasHydrated &&
+      context.read<GoalsStore>().hasHydrated &&
+      context.read<DebtsStore>().hasHydrated;
+}
+
+GoRouter buildAppRouter({required Listenable refreshListenable}) {
+  return GoRouter(
+    initialLocation: '/',
+    refreshListenable: refreshListenable,
+    redirect: (context, state) {
+      if (!_allHydrated(context)) {
+        return state.matchedLocation == '/' ? null : '/';
+      }
+      final hasCompletedOnboarding = context.read<SettingsStore>().hasCompletedOnboarding;
+      final isOnboardingRoute = state.matchedLocation.startsWith('/onboarding');
+
+      if (state.matchedLocation == '/') {
+        return hasCompletedOnboarding ? '/home' : '/onboarding/welcome';
+      }
+      if (!hasCompletedOnboarding && !isOnboardingRoute) {
+        return '/onboarding/welcome';
+      }
+      return null;
+    },
+    routes: [
+      GoRoute(path: '/', builder: (context, state) => const LoadingState()),
+
+      // ONBOARDING ROUTES — Tasks 14-16 add the remaining 5 GoRoute entries here
+      GoRoute(path: '/onboarding/welcome', builder: (context, state) => const WelcomeScreen()),
+
+      // TAB SHELL
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) => MainShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(routes: [GoRoute(path: '/home', builder: (context, state) => const HomeScreen())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/transactions', builder: (context, state) => const TransactionsScreen())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/insights', builder: (context, state) => const InsightsScreen())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/goals', builder: (context, state) => const GoalsListScreen())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/more', builder: (context, state) => const MoreScreen())]),
+        ],
+      ),
+
+      // PUSHED ROUTES — Tasks 19, 21, 22, 23, 24, 25, 26 add their GoRoute entries here
+    ],
+  );
+}
+```
+
+- [ ] **Step 4: Replace `main.dart`**
+
+Overwrite `lib/main.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
+
+import 'app_router.dart';
+import 'theme/app_theme.dart';
+import 'widgets/phone_frame.dart';
+import 'widgets/error_banner.dart';
+
+import 'stores/error_banner_store.dart';
+import 'stores/settings_store.dart';
+import 'stores/accounts_store.dart';
+import 'stores/categories_store.dart';
+import 'stores/transactions_store.dart';
+import 'stores/recurring_store.dart';
+import 'stores/goals_store.dart';
+import 'stores/debts_store.dart';
+
+void main() {
+  runApp(const AppRoot());
+}
+
+class AppRoot extends StatelessWidget {
+  const AppRoot({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ErrorBannerStore()),
+        ChangeNotifierProvider(create: (context) => SettingsStore(context.read<ErrorBannerStore>())..hydrate()),
+        ChangeNotifierProvider(create: (context) => AccountsStore(context.read<ErrorBannerStore>())..hydrate()),
+        ChangeNotifierProvider(create: (context) => CategoriesStore(context.read<ErrorBannerStore>())..hydrate()),
+        ChangeNotifierProvider(create: (context) => TransactionsStore(context.read<ErrorBannerStore>())..hydrate()),
+        ChangeNotifierProvider(create: (context) => RecurringStore(context.read<ErrorBannerStore>())..hydrate()),
+        ChangeNotifierProvider(create: (context) => GoalsStore(context.read<ErrorBannerStore>())..hydrate()),
+        ChangeNotifierProvider(create: (context) => DebtsStore(context.read<ErrorBannerStore>())..hydrate()),
+      ],
+      child: const _RouterHost(),
+    );
+  }
+}
+
+class _RouterHost extends StatefulWidget {
+  const _RouterHost();
+
+  @override
+  State<_RouterHost> createState() => _RouterHostState();
+}
+
+class _RouterHostState extends State<_RouterHost> {
+  late final GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    final refresh = Listenable.merge([
+      context.read<SettingsStore>(),
+      context.read<AccountsStore>(),
+      context.read<CategoriesStore>(),
+      context.read<TransactionsStore>(),
+      context.read<RecurringStore>(),
+      context.read<GoalsStore>(),
+      context.read<DebtsStore>(),
+    ]);
+    _router = buildAppRouter(refreshListenable: refresh);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp.router(
+      title: 'JM Finance Tracker',
+      debugShowCheckedModeBanner: false,
+      theme: buildAppTheme(),
+      routerConfig: _router,
+      builder: (context, child) {
+        return PhoneFrame(
+          child: Stack(
+            children: [
+              if (child != null) child,
+              const ErrorBanner(),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+```
+`refreshListenable` is what makes hydration completion (each store's `hydrate()` calling `notifyListeners()`) trigger `go_router` to re-run its `redirect` callback — without it, the router would only re-evaluate on user-initiated navigation and could get stuck on the loading screen.
+
+- [ ] **Step 5: Verify it compiles and boots**
+
+Run: `flutter analyze lib`
+Expected: `No issues found!`
+
+Run: `flutter build web`
+Expected: `√ Built build/web` with no errors.
+
+- [ ] **Step 6: Manually verify the redirect flow**
+
+Run: `flutter run -d chrome`, resize the browser to phone width (or open devtools' device toolbar).
+Expected: a brief loading spinner, then redirect to `/onboarding/welcome` (fresh install has no `hasCompletedOnboarding`) showing "Welcome — built in Task 14" inside the centered phone-width frame. Stop the run once confirmed (`q` in the terminal, or close the tab).
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add lib/main.dart lib/app_router.dart lib/widgets/main_shell.dart lib/screens/onboarding/welcome_screen.dart lib/screens/home_screen.dart lib/screens/transactions_screen.dart lib/screens/insights_screen.dart lib/screens/goals_list_screen.dart lib/screens/more_screen.dart
+git commit -m "feat: wire up router, hydration-gated redirect, and 5-tab shell"
+```
