@@ -70,7 +70,8 @@ class _TransactionEditScreenState extends State<TransactionEditScreen> {
         setState(() => _error = 'Enter a valid amount, account, and category.');
         return;
       }
-      final signedAmount = _type == 'income' ? amount! : -amount!;
+      final resolvedAmount = amount;
+      final signedAmount = _type == 'income' ? resolvedAmount : -resolvedAmount;
       if (isNew) {
         actions.createTransaction(
           accountId: _accountId,
@@ -87,6 +88,7 @@ class _TransactionEditScreenState extends State<TransactionEditScreen> {
     }
 
     void handleDelete() {
+      if (existing == null) return;
       showDialog(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -148,7 +150,7 @@ class _TransactionEditScreenState extends State<TransactionEditScreen> {
           AppFormField(label: 'Note', value: _note, onChanged: (v) => setState(() => _note = v), placeholder: 'Optional note'),
           const SizedBox(height: AppSpacing.xl),
           AppButton(label: 'Save', onPressed: isValid ? handleSave : null),
-          if (!isNew) ...[
+          if (!isNew && existing != null) ...[
             const SizedBox(height: AppSpacing.md),
             AppButton(label: 'Delete', variant: AppButtonVariant.secondary, onPressed: handleDelete),
           ],
