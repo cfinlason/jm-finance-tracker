@@ -26,6 +26,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
   String _name = '';
   String _targetText = '';
   String _contribution = '';
+  bool _initialized = false;
 
   @override
   Widget build(BuildContext context) {
@@ -94,6 +95,44 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     );
     final resolvedGoal = goal;
 
+    if (!_initialized) {
+      _name = resolvedGoal.name;
+      _targetText = resolvedGoal.targetAmount.toString();
+      _initialized = true;
+    }
+
+    void handleSave() {
+      final target = double.tryParse(_targetText);
+      if (_name.isEmpty || target == null || target <= 0) return;
+      goalsStore.updateGoal(resolvedGoal.id, name: _name, targetAmount: target);
+    }
+
+    void handleDelete() {
+      final target = goal;
+      if (target == null) return;
+      showDialog(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: const Text('Delete goal?', style: TextStyle(color: AppColors.text)),
+          content: const Text('This cannot be undone.', style: TextStyle(color: AppColors.textSecondary)),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () {
+                goalsStore.removeGoal(target.id);
+                Navigator.pop(dialogContext);
+                context.pop();
+              },
+              child: const Text('Delete', style: TextStyle(color: AppColors.warning)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final isNameValid = _name.isNotEmpty && (double.tryParse(_targetText) ?? 0) > 0;
+
     void handleAddContribution() {
       final amount = double.tryParse(_contribution);
       if (amount == null || amount <= 0 || accounts.isEmpty || transferCategory == null) return;
@@ -113,8 +152,20 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(resolvedGoal.name, style: const TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
-          const SizedBox(height: AppSpacing.sm),
+          const Text('Edit Goal', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+          const SizedBox(height: AppSpacing.lg),
+          AppFormField(label: 'Goal name', value: _name, onChanged: (v) => setState(() => _name = v), placeholder: 'e.g. Emergency Fund'),
+          const SizedBox(height: AppSpacing.md),
+          AppFormField(
+            label: 'Target amount (J\$)',
+            value: _targetText,
+            onChanged: (v) => setState(() => _targetText = v),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            placeholder: '0.00',
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppButton(label: 'Save', onPressed: isNameValid ? handleSave : null),
+          const SizedBox(height: AppSpacing.lg),
           AppProgressBar(progress: resolvedGoal.targetAmount == 0 ? 0 : resolvedGoal.currentAmount / resolvedGoal.targetAmount),
           const SizedBox(height: AppSpacing.sm),
           Text(
@@ -131,6 +182,10 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
           ),
           const SizedBox(height: AppSpacing.md),
           AppButton(label: 'Add Contribution', onPressed: _contribution.isNotEmpty ? handleAddContribution : null),
+          if (!isNew) ...[
+            const SizedBox(height: AppSpacing.md),
+            AppButton(label: 'Delete', variant: AppButtonVariant.secondary, onPressed: handleDelete),
+          ],
         ],
       ),
     );
