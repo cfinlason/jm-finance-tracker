@@ -21,6 +21,7 @@ import 'screens/transactions_screen.dart';
 import 'screens/insights_screen.dart';
 import 'screens/goals_list_screen.dart';
 import 'screens/more_screen.dart';
+import 'screens/transaction_edit_screen.dart';
 
 import 'widgets/loading_state.dart';
 import 'widgets/main_shell.dart';
@@ -78,6 +79,7 @@ GoRouter buildAppRouter({required Listenable refreshListenable}) {
       ),
 
       // PUSHED ROUTES — Tasks 19, 21, 22, 23, 24, 25, 26 add their GoRoute entries here
+      GoRoute(path: '/transaction/:id', builder: (context, state) => TransactionEditScreen(id: state.pathParameters['id']!)),
     ],
   );
 }
