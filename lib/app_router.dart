@@ -70,7 +70,7 @@ GoRouter buildAppRouter({required Listenable refreshListenable}) {
     routes: [
       GoRoute(path: '/', builder: (context, state) => const LoadingState()),
 
-      // ONBOARDING ROUTES — Tasks 14-16 add the remaining 5 GoRoute entries here
+      // Onboarding routes
       GoRoute(path: '/onboarding/welcome', builder: (context, state) => const WelcomeScreen()),
       GoRoute(path: '/onboarding/accounts', builder: (context, state) => const OnboardingAccountsScreen()),
       GoRoute(path: '/onboarding/income', builder: (context, state) => const OnboardingIncomeScreen()),
@@ -90,10 +90,10 @@ GoRouter buildAppRouter({required Listenable refreshListenable}) {
         ],
       ),
 
-      // PUSHED ROUTES — Tasks 19, 21, 22, 23, 24, 25, 26 add their GoRoute entries here
+      // Pushed routes (outside the tab shell)
       GoRoute(path: '/transaction/:id', builder: (context, state) => TransactionEditScreen(id: state.pathParameters['id']!)),
       GoRoute(path: '/goal/:id', builder: (context, state) => GoalDetailScreen(id: state.pathParameters['id']!)),
-      GoRoute(path: '/debt', builder: (context, state) => const DebtScreen()),
+      GoRoute(path: '/debts', builder: (context, state) => const DebtScreen()),
       GoRoute(path: '/debts/:id', builder: (context, state) => DebtEditScreen(id: state.pathParameters['id']!)),
       GoRoute(path: '/cash-flow', builder: (context, state) => const CashFlowScreen()),
       GoRoute(path: '/accounts', builder: (context, state) => const AccountsManagementScreen()),

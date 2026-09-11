@@ -1,11 +1,11 @@
 {
-    "name": "jm_finance_tracker",
-    "short_name": "jm_finance_tracker",
+    "name": "JM Finance Tracker",
+    "short_name": "JM Finance",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "A personal finance tracker for Jamaican dollars — accounts, transactions, budgeting, goals, and debt payoff planning.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

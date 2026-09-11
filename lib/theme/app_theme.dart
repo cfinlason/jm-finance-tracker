@@ -1,6 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+// NOTE: Archivo font weights (400/600/700/800) are fetched from
+// fonts.gstatic.com at runtime via google_fonts rather than bundled as local
+// assets. Bundling would remove the first-load network round-trip and
+// fallback-font flash, but doing so requires downloading the .ttf files and
+// registering them as pubspec assets, which isn't possible in this sandbox
+// (no network access to fonts.gstatic.com to fetch the binaries). This is a
+// consciously accepted tradeoff for now: google_fonts caches the fetched
+// files after first successful load, so the network cost is paid once per
+// install/cache-clear, not on every launch. `allowRuntimeFetching` is left
+// at its default (true) to reflect this explicitly rather than leaving it
+// implicit. Revisit by bundling assets per
+// https://pub.dev/packages/google_fonts#offline-support-self-hosting-fonts
+// when a real font-fetching environment is available.
+void _configureFontFetching() {
+  GoogleFonts.config.allowRuntimeFetching = true;
+}
+
 class AppColors {
   static const bg = Color(0xFF101110);
   static const surface = Color(0xFF1B1D18);
@@ -54,6 +71,7 @@ class AppTypography {
 }
 
 ThemeData buildAppTheme() {
+  _configureFontFetching();
   final base = ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
