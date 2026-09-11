@@ -12,6 +12,8 @@ import 'stores/debts_store.dart';
 
 import 'screens/onboarding/welcome_screen.dart';
 import 'screens/onboarding/accounts_screen.dart';
+import 'screens/onboarding/income_screen.dart';
+import 'screens/onboarding/recurring_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/transactions_screen.dart';
 import 'screens/insights_screen.dart';
@@ -56,6 +58,8 @@ GoRouter buildAppRouter({required Listenable refreshListenable}) {
       // ONBOARDING ROUTES — Tasks 14-16 add the remaining 5 GoRoute entries here
       GoRoute(path: '/onboarding/welcome', builder: (context, state) => const WelcomeScreen()),
       GoRoute(path: '/onboarding/accounts', builder: (context, state) => const OnboardingAccountsScreen()),
+      GoRoute(path: '/onboarding/income', builder: (context, state) => const OnboardingIncomeScreen()),
+      GoRoute(path: '/onboarding/recurring', builder: (context, state) => const OnboardingRecurringScreen()),
 
       // TAB SHELL
       StatefulShellRoute.indexedStack(
