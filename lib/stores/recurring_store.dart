@@ -21,8 +21,13 @@ class RecurringStore extends ChangeNotifier {
   Future<void> hydrate() async {
     final raw = await loadJson(_key, errorBanner);
     if (raw != null) {
-      final list = jsonDecode(raw) as List<dynamic>;
-      _rules = list.map((e) => RecurringRule.fromJson(e as Map<String, dynamic>)).toList();
+      try {
+        final list = jsonDecode(raw) as List<dynamic>;
+        _rules = list.map((e) => RecurringRule.fromJson(e as Map<String, dynamic>)).toList();
+      } catch (_) {
+        _rules = [];
+        errorBanner.show("Couldn't load saved data — starting fresh");
+      }
     }
     _hasHydrated = true;
     notifyListeners();

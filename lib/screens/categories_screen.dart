@@ -17,6 +17,27 @@ class CategoriesScreen extends StatelessWidget {
     final categoriesStore = context.watch<CategoriesStore>();
     final categories = categoriesStore.categories;
 
+    void handleDelete(String id) {
+      showDialog(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: const Text('Delete category?', style: TextStyle(color: AppColors.text)),
+          content: const Text('This cannot be undone.', style: TextStyle(color: AppColors.textSecondary)),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () {
+                categoriesStore.removeCategory(id);
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('Delete', style: TextStyle(color: AppColors.warning)),
+            ),
+          ],
+        ),
+      );
+    }
+
     return AppScreen(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -37,7 +58,7 @@ class CategoriesScreen extends StatelessWidget {
                     title: categories[i].name,
                     caption: categories[i].isCustom ? 'Custom — tap to remove' : 'Preset',
                     isLast: i == categories.length - 1,
-                    onTap: categories[i].isCustom ? () => categoriesStore.removeCategory(categories[i].id) : null,
+                    onTap: categories[i].isCustom ? () => handleDelete(categories[i].id) : null,
                   ),
               ],
             ),

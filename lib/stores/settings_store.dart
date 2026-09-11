@@ -21,7 +21,12 @@ class SettingsStore extends ChangeNotifier {
   Future<void> hydrate() async {
     final raw = await loadJson(_key, errorBanner);
     if (raw != null) {
-      _settings = UserSettings.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      try {
+        _settings = UserSettings.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      } catch (_) {
+        _settings = UserSettings();
+        errorBanner.show("Couldn't load saved data — starting fresh");
+      }
     }
     _hasHydrated = true;
     notifyListeners();
