@@ -18,8 +18,12 @@ class AppScreen extends StatelessWidget {
 
     return Container(
       color: AppColors.bg,
-      child: SafeArea(
-        child: scroll ? SingleChildScrollView(child: content) : content,
+      child: Material(
+        type: MaterialType.transparency,
+        color: Colors.transparent,
+        child: SafeArea(
+          child: scroll ? SingleChildScrollView(child: content) : content,
+        ),
       ),
     );
   }
