@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -100,7 +99,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
       if (amount == null || amount <= 0 || accounts.isEmpty || transferCategory == null) return;
       actions.createTransaction(
         accountId: accounts[0].id,
-        categoryId: transferCategory!.id,
+        categoryId: transferCategory.id,
         amount: -amount,
         note: 'Contribution to ${resolvedGoal.name}',
         date: DateTime.now().toIso8601String(),

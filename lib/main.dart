@@ -77,7 +77,7 @@ class _RouterHostState extends State<_RouterHost> {
         return PhoneFrame(
           child: Stack(
             children: [
-              if (child != null) child,
+              ?child,
               const ErrorBanner(),
             ],
           ),
