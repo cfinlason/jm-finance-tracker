@@ -26,6 +26,8 @@ import 'screens/goal_detail_screen.dart';
 import 'screens/debt_screen.dart';
 import 'screens/debt_edit_screen.dart';
 import 'screens/cash_flow_screen.dart';
+import 'screens/accounts_management_screen.dart';
+import 'screens/account_edit_screen.dart';
 
 import 'widgets/loading_state.dart';
 import 'widgets/main_shell.dart';
@@ -88,6 +90,8 @@ GoRouter buildAppRouter({required Listenable refreshListenable}) {
       GoRoute(path: '/debt', builder: (context, state) => const DebtScreen()),
       GoRoute(path: '/debts/:id', builder: (context, state) => DebtEditScreen(id: state.pathParameters['id']!)),
       GoRoute(path: '/cash-flow', builder: (context, state) => const CashFlowScreen()),
+      GoRoute(path: '/accounts', builder: (context, state) => const AccountsManagementScreen()),
+      GoRoute(path: '/accounts/:id', builder: (context, state) => AccountEditScreen(id: state.pathParameters['id']!)),
     ],
   );
 }
