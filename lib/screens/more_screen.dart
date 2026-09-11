@@ -18,6 +18,7 @@ const _items = [
   _MoreItem(label: 'Categories', icon: LucideIcons.tag, route: '/categories'),
   _MoreItem(label: 'Recurring Bills', icon: LucideIcons.repeat, route: '/recurring'),
   _MoreItem(label: 'Notifications', icon: LucideIcons.bell, route: '/notifications'),
+  _MoreItem(label: 'Settings', icon: LucideIcons.settings, route: '/settings'),
 ];
 
 class MoreScreen extends StatelessWidget {
