@@ -70,9 +70,28 @@ class _RecurringEditScreenState extends State<RecurringEditScreen> {
           nextDueDate: _nextDueDate,
         );
       } else if (rule != null) {
-        recurringStore.updateRule(rule.id, name: _name, amount: amount, frequency: _frequency);
+        recurringStore.updateRule(rule.id, name: _name, amount: amount, frequency: _frequency, nextDueDate: _nextDueDate);
       }
       context.pop();
+    }
+
+    void handleMarkPaid() {
+      if (rule != null) {
+        recurringStore.advanceNextDueDate(rule.id);
+      }
+    }
+
+    Future<void> handlePickDate() async {
+      final current = DateTime.tryParse(_nextDueDate) ?? DateTime.now();
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: current,
+        firstDate: DateTime(current.year - 5),
+        lastDate: DateTime(current.year + 5),
+      );
+      if (picked != null) {
+        setState(() => _nextDueDate = picked.toIso8601String());
+      }
     }
 
     void handleDelete() {
@@ -110,9 +129,18 @@ class _RecurringEditScreenState extends State<RecurringEditScreen> {
           AppFormField(label: 'Amount (J\$)', value: _amountText, onChanged: (v) => setState(() => _amountText = v), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
           const SizedBox(height: AppSpacing.md),
           AppSegmentedControl<String>(options: _frequencies, value: _frequency, onChanged: (v) => setState(() => _frequency = v)),
+          const SizedBox(height: AppSpacing.md),
+          GestureDetector(
+            onTap: handlePickDate,
+            child: AbsorbPointer(
+              child: AppFormField(label: 'Next due date', value: _nextDueDate.substring(0, 10), onChanged: (_) {}),
+            ),
+          ),
           const SizedBox(height: AppSpacing.xl),
           AppButton(label: 'Save', onPressed: (_name.isNotEmpty && _amountText.isNotEmpty) ? handleSave : null),
           if (!isNew && rule != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            AppButton(label: 'Mark Paid', variant: AppButtonVariant.secondary, onPressed: handleMarkPaid),
             const SizedBox(height: AppSpacing.md),
             AppButton(label: 'Delete', variant: AppButtonVariant.secondary, onPressed: handleDelete),
           ],

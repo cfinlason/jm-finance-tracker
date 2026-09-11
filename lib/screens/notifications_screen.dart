@@ -30,7 +30,7 @@ class NotificationsScreen extends StatelessWidget {
 
     final notifications = <_NotificationItem>[
       for (final r in rules)
-        if (date_utils.isBefore(DateTime.parse(r.nextDueDate), soon))
+        if (!date_utils.isBefore(DateTime.parse(r.nextDueDate), now) && date_utils.isBefore(DateTime.parse(r.nextDueDate), soon))
           _NotificationItem(title: '${r.name} due soon', caption: r.nextDueDate.substring(0, 10)),
       for (final g in goals)
         if (g.currentAmount >= g.targetAmount) _NotificationItem(title: '${g.name} goal reached!', caption: 'Milestone hit'),
