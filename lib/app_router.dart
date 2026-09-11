@@ -32,6 +32,7 @@ import 'screens/categories_screen.dart';
 import 'screens/category_add_screen.dart';
 import 'screens/recurring_management_screen.dart';
 import 'screens/recurring_edit_screen.dart';
+import 'screens/notifications_screen.dart';
 
 import 'widgets/loading_state.dart';
 import 'widgets/main_shell.dart';
@@ -100,6 +101,7 @@ GoRouter buildAppRouter({required Listenable refreshListenable}) {
       GoRoute(path: '/categories/add', builder: (context, state) => const CategoryAddScreen()),
       GoRoute(path: '/recurring', builder: (context, state) => const RecurringManagementScreen()),
       GoRoute(path: '/recurring/:id', builder: (context, state) => RecurringEditScreen(id: state.pathParameters['id']!)),
+      GoRoute(path: '/notifications', builder: (context, state) => const NotificationsScreen()),
     ],
   );
 }
