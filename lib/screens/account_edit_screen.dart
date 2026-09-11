@@ -8,6 +8,9 @@ import '../widgets/app_form_field.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_segmented_control.dart';
 import '../stores/accounts_store.dart';
+import '../stores/transactions_store.dart';
+import '../stores/recurring_store.dart';
+import '../logic/account_actions.dart';
 
 const _accountTypes = [
   SegmentOption(label: 'Checking', value: 'checking'),
@@ -64,17 +67,29 @@ class _AccountEditScreenState extends State<AccountEditScreen> {
     }
 
     void handleDelete() {
+      final accountActions = AccountActions(
+        accountsStore: accountsStore,
+        transactionsStore: context.read<TransactionsStore>(),
+        recurringStore: context.read<RecurringStore>(),
+      );
+      final dependents = accountActions.countDependents(account!.id);
+      final hasDependents = dependents.transactionCount > 0 || dependents.recurringRuleCount > 0;
+      final message = hasDependents
+          ? 'Delete account? This will also delete ${dependents.transactionCount} associated transaction(s) '
+              'and ${dependents.recurringRuleCount} recurring bill(s). This cannot be undone.'
+          : 'This cannot be undone.';
+
       showDialog(
         context: context,
         builder: (dialogContext) => AlertDialog(
           backgroundColor: AppColors.surface,
           title: const Text('Delete account?', style: TextStyle(color: AppColors.text)),
-          content: const Text('This cannot be undone.', style: TextStyle(color: AppColors.textSecondary)),
+          content: Text(message, style: const TextStyle(color: AppColors.textSecondary)),
           actions: [
             TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
             TextButton(
               onPressed: () {
-                accountsStore.removeAccount(account!.id);
+                accountActions.deleteAccountCascade(account!.id);
                 Navigator.pop(dialogContext);
                 context.pop();
               },
