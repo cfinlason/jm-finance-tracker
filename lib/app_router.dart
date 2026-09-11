@@ -14,6 +14,8 @@ import 'screens/onboarding/welcome_screen.dart';
 import 'screens/onboarding/accounts_screen.dart';
 import 'screens/onboarding/income_screen.dart';
 import 'screens/onboarding/recurring_screen.dart';
+import 'screens/onboarding/goals_screen.dart';
+import 'screens/onboarding/done_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/transactions_screen.dart';
 import 'screens/insights_screen.dart';
@@ -60,6 +62,8 @@ GoRouter buildAppRouter({required Listenable refreshListenable}) {
       GoRoute(path: '/onboarding/accounts', builder: (context, state) => const OnboardingAccountsScreen()),
       GoRoute(path: '/onboarding/income', builder: (context, state) => const OnboardingIncomeScreen()),
       GoRoute(path: '/onboarding/recurring', builder: (context, state) => const OnboardingRecurringScreen()),
+      GoRoute(path: '/onboarding/goals', builder: (context, state) => const OnboardingGoalsScreen()),
+      GoRoute(path: '/onboarding/done', builder: (context, state) => const OnboardingDoneScreen()),
 
       // TAB SHELL
       StatefulShellRoute.indexedStack(
