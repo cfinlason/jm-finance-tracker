@@ -729,7 +729,7 @@ class _HeroSection extends StatelessWidget {
           decoration: BoxDecoration(border: Border.all(color: AppColors.border), borderRadius: BorderRadius.circular(14)),
           child: Row(
             children: [
-              Expanded(child: _QuickAction(icon: LucideIcons.plus, label: 'Add Transaction', onTap: () => _openAddTransaction(context))),
+              Expanded(child: _QuickAction(icon: LucideIcons.plus, label: 'Add Transaction', onTap: () => context.push('/transaction/new'))),
               Expanded(child: _QuickAction(icon: LucideIcons.creditCard, label: 'View Debt', onTap: () => context.push('/debts'))),
               Expanded(child: _QuickAction(icon: LucideIcons.trendingUp, label: 'Cash Flow', onTap: () => context.push('/cash-flow'))),
             ],
@@ -758,7 +758,7 @@ class _RecentTransactionsSection extends StatelessWidget {
             icon: const IconChip(child: Icon(LucideIcons.plus, size: 16, color: AppColors.textMuted)),
             message: 'No transactions yet.',
             ctaLabel: 'Add Transaction',
-            onPressCta: () => _openAddTransaction(context),
+            onPressCta: () => context.push('/transaction/new'),
           )
         else
           AppCard(
@@ -771,7 +771,7 @@ class _RecentTransactionsSection extends StatelessWidget {
                     caption: recentTop5[i].note.isNotEmpty ? recentTop5[i].note : recentTop5[i].date.substring(0, 10),
                     amount: recentTop5[i].amount,
                     isLast: i == recentTop5.length - 1,
-                    onTap: () => _openEditTransaction(context, recentTop5[i].id),
+                    onTap: () => context.push('/transaction/${recentTop5[i].id}'),
                   ),
               ],
             ),
@@ -806,9 +806,18 @@ class _QuickAction extends StatelessWidget {
   }
 }
 ```
-Note: `_openAddTransaction` and `_openEditTransaction` are helper functions defined in Task 9 (they open the new `TransactionEditDialog` popup) — this task references them but does not define them yet; the file will not compile standalone until Task 9 lands. This is intentional and matches the plan's dependency order (responsive layout first, popups second) — if executing tasks strictly in order, Task 9 immediately follows and resolves this.
+This task keeps today's `context.push('/transaction/...')` navigation unchanged — only the layout is restructured into two reusable sections (`_HeroSection`, `_RecentTransactionsSection`) arranged as a `Row` on Expanded or stacked on Compact. Task 12 (later) converts these same navigation calls to popups once the dialog widgets exist.
 
-- [ ] **Step 2: Commit**
+- [ ] **Step 2: Verify it compiles and builds**
+
+Run: `flutter analyze lib/screens/home_screen.dart` — expected `No issues found!`
+Run: `flutter build web` — expected `√ Built build/web`.
+
+- [ ] **Step 3: Verify in the browser**
+
+At Compact width, confirm Home looks pixel-identical to before this task (hero, stats, quick actions, recent transactions all stacked). At Expanded width, confirm the hero/stats/quick-actions column sits to the left of the recent-transactions column, side by side.
+
+- [ ] **Step 4: Commit**
 
 ```bash
 git add lib/screens/home_screen.dart
@@ -832,6 +841,7 @@ Overwrite `lib/screens/goals_list_screen.dart`:
 ```dart
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../theme/app_theme.dart';
@@ -864,7 +874,7 @@ class GoalsListScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Goals', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
-                IconButton(icon: const Icon(LucideIcons.plus, color: AppColors.accent), onPressed: () => _openCreateGoal(context)),
+                IconButton(icon: const Icon(LucideIcons.plus, color: AppColors.accent), onPressed: () => context.push('/goal/new')),
               ],
             ),
             if (goals.isEmpty)
@@ -872,7 +882,7 @@ class GoalsListScreen extends StatelessWidget {
                 icon: const IconChip(child: Icon(LucideIcons.target, size: 16, color: AppColors.textMuted)),
                 message: 'No goals yet.',
                 ctaLabel: 'Add Goal',
-                onPressCta: () => _openCreateGoal(context),
+                onPressCta: () => context.push('/goal/new'),
               )
             else
               GridView.count(
@@ -898,25 +908,15 @@ class _GoalCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => _openContribution(context, goal.id),
+      onTap: () => context.push('/goal/${goal.id}'),
       child: AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    goal.name,
-                    style: const TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w700),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(LucideIcons.pencil, size: 16, color: AppColors.textMuted),
-                  onPressed: () => _openEditGoal(context, goal.id),
-                ),
-              ],
+            Text(
+              goal.name,
+              style: const TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w700),
+              overflow: TextOverflow.ellipsis,
             ),
             AppProgressBar(progress: goal.targetAmount == 0 ? 0 : goal.currentAmount / goal.targetAmount),
             const SizedBox(height: AppSpacing.sm),
@@ -931,9 +931,18 @@ class _GoalCard extends StatelessWidget {
   }
 }
 ```
-Note: `_openCreateGoal`, `_openEditGoal`, and `_openContribution` are defined in Task 14 (they open `GoalEditDialog`/`GoalContributionDialog`) — this file will not compile standalone until Task 14 lands, matching the same intentional ordering as Task 6. If the icon `LucideIcons.pencil` doesn't exist in the installed package version, substitute the closest equivalent (e.g. `LucideIcons.penLine` or `LucideIcons.edit3`) and note the substitution.
+This task keeps today's `context.push('/goal/...')` navigation and single-screen `GoalDetailScreen` unchanged — only the list layout is gridded. The card's edit-pencil affordance and the split into two separate popups (edit vs. contribute) are introduced in Task 14, which also removes this temporary `_GoalCard` in favor of the dialog-opening version.
 
-- [ ] **Step 2: Commit**
+- [ ] **Step 2: Verify it compiles and builds**
+
+Run: `flutter analyze lib/screens/goals_list_screen.dart` — expected `No issues found!`
+Run: `flutter build web` — expected `√ Built build/web`.
+
+- [ ] **Step 3: Verify in the browser**
+
+At Compact width, confirm one goal card per row, unchanged from before. At Expanded width (≥840px), confirm 2 columns; at ≥1200px, confirm 3 columns.
+
+- [ ] **Step 4: Commit**
 
 ```bash
 git add lib/screens/goals_list_screen.dart
@@ -1008,7 +1017,7 @@ to:
               children: [
                 for (final d in debts)
                   GestureDetector(
-                    onTap: () => _openEditDebt(context, d.id),
+                    onTap: () => context.push('/debts/${d.id}'),
                     child: AppCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1026,11 +1035,18 @@ to:
               ],
             ),
 ```
-Also change the header "+" button's `onPressed: () => context.push('/debts/new')` to `onPressed: () => _openCreateDebt(context)`, and the empty state's `onPressCta: () => context.push('/debts/new')` to `onPressCta: () => _openCreateDebt(context)`.
+This task's header "+" button and empty-state CTA keep their existing `context.push('/debts/new')` calls unchanged — only the per-debt list becomes a grid. Task 13 (later) converts these same navigation calls to popups once `DebtEditDialog` exists.
 
-Note: `_openCreateDebt` and `_openEditDebt` are defined in Task 13 (they open `DebtEditDialog`) — this file will not compile standalone until Task 13 lands, matching the same intentional ordering as Tasks 6–7.
+- [ ] **Step 2: Verify it compiles and builds**
 
-- [ ] **Step 2: Commit**
+Run: `flutter analyze lib/screens/debt_screen.dart` — expected `No issues found!`
+Run: `flutter build web` — expected `√ Built build/web`.
+
+- [ ] **Step 3: Verify in the browser**
+
+At Compact width, confirm the debt list is unchanged (one card per row). At Expanded width, confirm 2 debt cards per row while the total-owed and payoff-projection cards above stay full-width.
+
+- [ ] **Step 4: Commit**
 
 ```bash
 git add lib/screens/debt_screen.dart
