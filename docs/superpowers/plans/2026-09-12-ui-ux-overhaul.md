@@ -407,3 +407,197 @@ Run `flutter run -d chrome`. At a window width below 840px, confirm the bottom t
 git add lib/widgets/main_shell.dart
 git commit -m "feat: add responsive sidebar nav for Expanded window size"
 ```
+
+---
+
+### Task 4: Remove `PhoneFrame`
+
+**Files:**
+- Delete: `lib/widgets/phone_frame.dart`
+- Modify: `lib/main.dart`
+
+**Interfaces:**
+- Produces: the app root `MaterialApp.router`'s `builder` no longer wraps content in a fixed-width phone shell — `ResponsiveShell`'s work (Task 3) and `ContentBounds` (Task 2, used per-screen from Task 5 onward) take over that job.
+
+- [ ] **Step 1: Remove the `PhoneFrame` wrapper from `main.dart`**
+
+In `lib/main.dart`, remove the import:
+```dart
+import 'widgets/phone_frame.dart';
+```
+
+Replace the `builder` callback's body — change:
+```dart
+      builder: (context, child) {
+        return PhoneFrame(
+          child: Stack(
+            children: [
+              ?child,
+              const ErrorBanner(),
+            ],
+          ),
+        );
+      },
+```
+to:
+```dart
+      builder: (context, child) {
+        return ColoredBox(
+          color: AppColors.bg,
+          child: Stack(
+            children: [
+              ?child,
+              const ErrorBanner(),
+            ],
+          ),
+        );
+      },
+```
+
+- [ ] **Step 2: Delete `phone_frame.dart`**
+
+Run:
+```bash
+rm lib/widgets/phone_frame.dart
+```
+
+- [ ] **Step 3: Verify it compiles and builds**
+
+Run: `flutter analyze lib` — expected `No issues found!`
+Run: `flutter build web` — expected `√ Built build/web`.
+
+- [ ] **Step 4: Verify in the browser**
+
+Run `flutter run -d chrome` at a wide browser window. Confirm the app now fills the window (no centered phone-width card with empty space on the sides) — content will look unstyled/full-bleed at this point since no screen has adopted `ContentBounds` yet; that's expected until Task 5.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add lib/main.dart
+git rm lib/widgets/phone_frame.dart
+git commit -m "feat: remove fixed-width PhoneFrame, app now fills the browser window"
+```
+
+---
+
+### Task 5: Wrap single-column screens in `ContentBounds`
+
+**Files:**
+- Modify: `lib/screens/transactions_screen.dart`, `lib/screens/insights_screen.dart`, `lib/screens/accounts_management_screen.dart`, `lib/screens/categories_screen.dart`, `lib/screens/recurring_management_screen.dart`, `lib/screens/notifications_screen.dart`, `lib/screens/more_screen.dart`
+
+**Interfaces:**
+- Consumes: `ContentBounds` from Task 2.
+- Produces: these 7 screens render inside the same centered, width-capped container as every other screen on Expanded, while staying pixel-identical on Compact. This task does not touch any dialog/popup behavior (that's Tasks 9–14) — it's purely the wrapping.
+
+- [ ] **Step 1: Wrap `insights_screen.dart`**
+
+In `lib/screens/insights_screen.dart`, add the import:
+```dart
+import '../widgets/content_bounds.dart';
+```
+Then wrap **both** `return AppScreen(child: Column(...))` occurrences (the empty-state early return and the main return) so each becomes `return AppScreen(child: ContentBounds(child: Column(...)))` — i.e. insert `ContentBounds(child: ` immediately after `child: ` and close it with an extra `)` before the final `);` of that `AppScreen(...)` call. Concretely, change:
+```dart
+      return AppScreen(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Insights', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+            const SizedBox(height: AppSpacing.lg),
+            const EmptyState(
+              icon: IconChip(child: Icon(LucideIcons.pieChart, size: 16, color: AppColors.textMuted)),
+              message: 'Add transactions to see insights.',
+            ),
+          ],
+        ),
+      );
+```
+to:
+```dart
+      return AppScreen(
+        child: ContentBounds(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Insights', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+              const SizedBox(height: AppSpacing.lg),
+              const EmptyState(
+                icon: IconChip(child: Icon(LucideIcons.pieChart, size: 16, color: AppColors.textMuted)),
+                message: 'Add transactions to see insights.',
+              ),
+            ],
+          ),
+        ),
+      );
+```
+And apply the same transformation to the screen's second (main-content) `return AppScreen(child: Column(...));` — same wrapping pattern, just around the longer children list (Category Breakdown / Weekly Trend / Top Transactions cards). Re-indent the body one level deeper; do not otherwise change any of its content.
+
+- [ ] **Step 2: Wrap `accounts_management_screen.dart`**
+
+Add the import `import '../widgets/content_bounds.dart';`. Change:
+```dart
+    return AppScreen(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+```
+to:
+```dart
+    return AppScreen(
+      child: ContentBounds(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+```
+and add one closing `)` before the final `);` that ends the `AppScreen(...)` call, re-indenting the body one level deeper. The body content (the `Row` header + `EmptyState`/`AppCard` list) is otherwise unchanged.
+
+- [ ] **Step 3: Wrap `categories_screen.dart`**
+
+Same transformation as Step 2 — add the `content_bounds.dart` import, wrap the single `return AppScreen(child: Column(...));` in `ContentBounds(...)`, re-indent, no other changes.
+
+- [ ] **Step 4: Wrap `recurring_management_screen.dart`**
+
+Same transformation as Step 2.
+
+- [ ] **Step 5: Wrap `notifications_screen.dart`**
+
+Same transformation as Step 2.
+
+- [ ] **Step 6: Wrap `more_screen.dart`**
+
+Same transformation as Step 2.
+
+- [ ] **Step 7: Wrap `transactions_screen.dart`**
+
+This screen uses `AppScreen(scroll: false, padded: false, child: Column(...))` (not the plain `AppScreen(child: ...)` shape the others use) because it manages its own `ListView`/padding internally. Add the import, then wrap only the outer `Column`'s content in `ContentBounds` so the search box, filter, and list all get the same width treatment as everything else:
+```dart
+    return AppScreen(
+      scroll: false,
+      padded: false,
+      child: ContentBounds(
+        child: Column(
+          children: [
+```
+...(re-indent the existing body one level deeper)...
+```dart
+          ],
+        ),
+      ),
+    );
+```
+Note: `ContentBounds` passes through unchanged on Compact (as built in Task 2), so this screen's existing `scroll: false`/manual `Expanded`+`ListView` behavior is unaffected at the Compact breakpoint; on Expanded it now centers within the 1200px cap.
+
+- [ ] **Step 8: Verify it compiles and builds**
+
+Run: `flutter analyze lib/screens` — expected `No issues found!`
+Run: `flutter build web` — expected `√ Built build/web`.
+
+- [ ] **Step 9: Verify in the browser**
+
+At a Compact width, confirm all 7 screens are pixel-identical to before this task. At an Expanded width (e.g. 1280px), confirm each screen's content is centered with visible margins rather than stretching edge-to-edge.
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add lib/screens/transactions_screen.dart lib/screens/insights_screen.dart lib/screens/accounts_management_screen.dart lib/screens/categories_screen.dart lib/screens/recurring_management_screen.dart lib/screens/notifications_screen.dart lib/screens/more_screen.dart
+git commit -m "feat: wrap single-column screens in ContentBounds for responsive width"
+```
