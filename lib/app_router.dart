@@ -21,7 +21,6 @@ import 'screens/transactions_screen.dart';
 import 'screens/insights_screen.dart';
 import 'screens/goals_list_screen.dart';
 import 'screens/more_screen.dart';
-import 'screens/goal_detail_screen.dart';
 import 'screens/debt_screen.dart';
 import 'screens/cash_flow_screen.dart';
 import 'screens/accounts_management_screen.dart';
@@ -86,7 +85,6 @@ GoRouter buildAppRouter({required Listenable refreshListenable}) {
       ),
 
       // Pushed routes (outside the tab shell)
-      GoRoute(path: '/goal/:id', builder: (context, state) => GoalDetailScreen(id: state.pathParameters['id']!)),
       GoRoute(path: '/debts', builder: (context, state) => const DebtScreen()),
       GoRoute(path: '/cash-flow', builder: (context, state) => const CashFlowScreen()),
       GoRoute(path: '/accounts', builder: (context, state) => const AccountsManagementScreen()),

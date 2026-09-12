@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../theme/app_theme.dart';
@@ -13,6 +12,8 @@ import '../widgets/icon_chip.dart';
 import '../utils/money.dart';
 import '../stores/goals_store.dart';
 import '../models/models.dart';
+import 'goal_edit_dialog.dart';
+import 'goal_contribution_dialog.dart';
 
 class GoalsListScreen extends StatelessWidget {
   const GoalsListScreen({super.key});
@@ -32,7 +33,7 @@ class GoalsListScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Goals', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
-                IconButton(icon: const Icon(LucideIcons.plus, color: AppColors.accent), onPressed: () => context.push('/goal/new')),
+                IconButton(icon: const Icon(LucideIcons.plus, color: AppColors.accent), onPressed: () => showDialog(context: context, builder: (_) => const GoalEditDialog(id: 'new'))),
               ],
             ),
             if (goals.isEmpty)
@@ -40,7 +41,7 @@ class GoalsListScreen extends StatelessWidget {
                 icon: const IconChip(child: Icon(LucideIcons.target, size: 16, color: AppColors.textMuted)),
                 message: 'No goals yet.',
                 ctaLabel: 'Add Goal',
-                onPressCta: () => context.push('/goal/new'),
+                onPressCta: () => showDialog(context: context, builder: (_) => const GoalEditDialog(id: 'new')),
               )
             else
               GridView.count(
@@ -66,15 +67,22 @@ class _GoalCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push('/goal/${goal.id}'),
+      onTap: () => showDialog(context: context, builder: (_) => GoalContributionDialog(goalId: goal.id)),
       child: AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              goal.name,
-              style: const TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w700),
-              overflow: TextOverflow.ellipsis,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(child: Text(goal.name, style: const TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w700), overflow: TextOverflow.ellipsis)),
+                IconButton(
+                  icon: const Icon(LucideIcons.pencil, size: 16, color: AppColors.textMuted),
+                  onPressed: () => showDialog(context: context, builder: (_) => GoalEditDialog(id: goal.id)),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
             ),
             AppProgressBar(progress: goal.targetAmount == 0 ? 0 : goal.currentAmount / goal.targetAmount),
             const SizedBox(height: AppSpacing.sm),
