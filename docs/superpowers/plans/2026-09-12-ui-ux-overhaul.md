@@ -1052,3 +1052,257 @@ At Compact width, confirm the debt list is unchanged (one card per row). At Expa
 git add lib/screens/debt_screen.dart
 git commit -m "feat: lay out Debt list as a responsive grid on Expanded"
 ```
+
+---
+
+### Task 9: Transaction popup dialog
+
+**Files:**
+- Create: `lib/screens/transaction_edit_dialog.dart`
+- Delete: `lib/screens/transaction_edit_screen.dart`
+- Modify: `lib/screens/home_screen.dart`, `lib/screens/transactions_screen.dart`, `lib/app_router.dart`
+
+**Interfaces:**
+- Consumes: `AppDialog` from Task 2; `TransactionActions` (unchanged, from the original 27-task plan's Task 9).
+- Produces: `TransactionEditDialog({required String id})` — a `StatefulWidget` whose `build()` returns an `AppDialog`. `id == 'new'` creates; any other `id` edits/deletes. Shown via `showDialog(context: context, builder: (_) => TransactionEditDialog(id: ...))`; closes itself via `Navigator.of(context).pop()` on save/delete instead of `context.pop()`.
+
+- [ ] **Step 1: Create `transaction_edit_dialog.dart`**
+
+Create `lib/screens/transaction_edit_dialog.dart`:
+```dart
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../theme/app_theme.dart';
+import '../models/models.dart';
+import '../widgets/app_dialog.dart';
+import '../widgets/app_form_field.dart';
+import '../widgets/app_button.dart';
+import '../widgets/app_segmented_control.dart';
+import '../stores/accounts_store.dart';
+import '../stores/categories_store.dart';
+import '../stores/transactions_store.dart';
+import '../stores/goals_store.dart';
+import '../logic/transaction_actions.dart';
+
+class TransactionEditDialog extends StatefulWidget {
+  final String id;
+  const TransactionEditDialog({super.key, required this.id});
+
+  @override
+  State<TransactionEditDialog> createState() => _TransactionEditDialogState();
+}
+
+class _TransactionEditDialogState extends State<TransactionEditDialog> {
+  late String _type;
+  late String _amountText;
+  late String _accountId;
+  late String _categoryId;
+  late String _note;
+  String _error = '';
+  bool _initialized = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final accounts = context.watch<AccountsStore>().accounts;
+    final categories = context.watch<CategoriesStore>().categories;
+    final transactionsStore = context.watch<TransactionsStore>();
+    final isNew = widget.id == 'new';
+
+    Transaction? existing;
+    if (!isNew) {
+      for (final t in transactionsStore.transactions) {
+        if (t.id == widget.id) {
+          existing = t;
+          break;
+        }
+      }
+    }
+
+    if (!_initialized) {
+      _type = existing?.type == 'income' ? 'income' : 'expense';
+      _amountText = existing != null ? existing.amount.abs().toString() : '';
+      _accountId = existing?.accountId ?? (accounts.isNotEmpty ? accounts[0].id : '');
+      _categoryId = existing?.categoryId ?? (categories.isNotEmpty ? categories[0].id : '');
+      _note = existing?.note ?? '';
+      _initialized = true;
+    }
+
+    final amount = double.tryParse(_amountText);
+    final isValid = amount != null && amount > 0 && _accountId.isNotEmpty && _categoryId.isNotEmpty;
+
+    final actions = TransactionActions(
+      accountsStore: context.read<AccountsStore>(),
+      transactionsStore: transactionsStore,
+      goalsStore: context.read<GoalsStore>(),
+    );
+
+    void handleSave() {
+      if (!isValid) {
+        setState(() => _error = 'Enter a valid amount, account, and category.');
+        return;
+      }
+      final signedAmount = _type == 'income' ? amount! : -amount!;
+      if (isNew) {
+        actions.createTransaction(
+          accountId: _accountId,
+          categoryId: _categoryId,
+          amount: signedAmount,
+          note: _note,
+          date: DateTime.now().toIso8601String(),
+          type: _type,
+        );
+      } else if (existing != null) {
+        actions.editTransaction(existing.id, accountId: _accountId, categoryId: _categoryId, amount: signedAmount, note: _note, type: _type);
+      }
+      Navigator.of(context).pop();
+    }
+
+    void handleDelete() {
+      final target = existing;
+      if (target == null) return;
+      showDialog(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: const Text('Delete transaction?', style: TextStyle(color: AppColors.text)),
+          content: const Text('This cannot be undone.', style: TextStyle(color: AppColors.textSecondary)),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () {
+                actions.deleteTransaction(target.id);
+                Navigator.pop(dialogContext);
+                Navigator.of(context).pop();
+              },
+              child: const Text('Delete', style: TextStyle(color: AppColors.warning)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return AppDialog(
+      title: isNew ? 'Add Transaction' : 'Edit Transaction',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppSegmentedControl<String>(
+            options: const [SegmentOption(label: 'Expense', value: 'expense'), SegmentOption(label: 'Income', value: 'income')],
+            value: _type,
+            onChanged: (v) => setState(() => _type = v),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          AppFormField(
+            label: 'Amount (J\$)',
+            value: _amountText,
+            onChanged: (v) => setState(() => _amountText = v),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            placeholder: '0.00',
+            error: _error.isNotEmpty ? _error : null,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          const Text('ACCOUNT', style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.1)),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [for (final a in accounts) _Chip(label: a.name, active: _accountId == a.id, onTap: () => setState(() => _accountId = a.id))],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          const Text('CATEGORY', style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.1)),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [for (final c in categories) _Chip(label: c.name, active: _categoryId == c.id, onTap: () => setState(() => _categoryId = c.id))],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppFormField(label: 'Note', value: _note, onChanged: (v) => setState(() => _note = v), placeholder: 'Optional note'),
+          const SizedBox(height: AppSpacing.xl),
+          AppButton(label: 'Save', onPressed: isValid ? handleSave : null),
+          if (!isNew && existing != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            AppButton(label: 'Delete', variant: AppButtonVariant.secondary, onPressed: handleDelete),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _Chip({required this.label, required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: active ? AppColors.accent : Colors.transparent,
+          border: Border.all(color: active ? AppColors.accent : AppColors.border),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(label, style: TextStyle(color: active ? AppColors.accentInk : AppColors.text, fontSize: 13, fontWeight: FontWeight.w600)),
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Delete the old routed screen**
+
+Run: `rm lib/screens/transaction_edit_screen.dart`
+
+- [ ] **Step 3: Wire `home_screen.dart` to open the dialog**
+
+In `lib/screens/home_screen.dart`, add the import:
+```dart
+import 'transaction_edit_dialog.dart';
+```
+Change `onTap: () => context.push('/transaction/new')` (in `_QuickAction`'s "Add Transaction" and in `_RecentTransactionsSection`'s empty-state CTA) to:
+```dart
+onTap: () => showDialog(context: context, builder: (_) => const TransactionEditDialog(id: 'new')),
+```
+Change `onTap: () => context.push('/transaction/${recentTop5[i].id}')` to:
+```dart
+onTap: () => showDialog(context: context, builder: (_) => TransactionEditDialog(id: recentTop5[i].id)),
+```
+
+- [ ] **Step 4: Wire `transactions_screen.dart` to open the dialog**
+
+Add the import `import 'transaction_edit_dialog.dart';`. Change the empty state's `onPressCta: () => context.push('/transaction/new')` to `onPressCta: () => showDialog(context: context, builder: (_) => const TransactionEditDialog(id: 'new'))`. Change the transaction row's `onTap: () => context.push('/transaction/${t.id}')` to `onTap: () => showDialog(context: context, builder: (_) => TransactionEditDialog(id: t.id))`.
+
+- [ ] **Step 5: Remove the route from `app_router.dart`**
+
+Remove this line from the `routes:` list:
+```dart
+      GoRoute(path: '/transaction/:id', builder: (context, state) => TransactionEditScreen(id: state.pathParameters['id']!)),
+```
+Remove the now-unused import:
+```dart
+import 'screens/transaction_edit_screen.dart';
+```
+
+- [ ] **Step 6: Verify it compiles and builds**
+
+Run: `flutter analyze lib` — expected `No issues found!`
+Run: `flutter build web` — expected `√ Built build/web`.
+
+- [ ] **Step 7: Verify the full add → edit → delete cycle in the browser**
+
+From Home or Transactions, tap "Add Transaction". Confirm a popup opens (not a full-page navigation), fill it out, tap Save, confirm it closes itself and the transaction appears in both lists. Tap an existing transaction, confirm the popup pre-fills, edit it, Save, confirm it closes and the change is reflected. Tap Delete, confirm the nested confirmation dialog, confirm on Delete it removes the transaction and closes both dialogs.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add lib/screens/transaction_edit_dialog.dart lib/screens/home_screen.dart lib/screens/transactions_screen.dart lib/app_router.dart
+git rm lib/screens/transaction_edit_screen.dart
+git commit -m "feat: convert Add/Edit Transaction to a popup dialog"
+```
