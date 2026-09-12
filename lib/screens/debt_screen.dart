@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../theme/app_theme.dart';
@@ -15,6 +14,7 @@ import '../utils/money.dart';
 import '../logic/debt_payoff.dart';
 import '../models/models.dart';
 import '../stores/debts_store.dart';
+import 'debt_edit_dialog.dart';
 
 class DebtScreen extends StatefulWidget {
   const DebtScreen({super.key});
@@ -79,7 +79,7 @@ class _DebtScreenState extends State<DebtScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Debt', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
-                IconButton(icon: const Icon(LucideIcons.plus, color: AppColors.accent), onPressed: () => context.push('/debts/new')),
+                IconButton(icon: const Icon(LucideIcons.plus, color: AppColors.accent), onPressed: () => showDialog(context: context, builder: (_) => const DebtEditDialog(id: 'new'))),
               ],
             ),
             if (debts.isEmpty)
@@ -87,7 +87,7 @@ class _DebtScreenState extends State<DebtScreen> {
                 icon: const IconChip(child: Icon(LucideIcons.creditCard, size: 16, color: AppColors.textMuted)),
                 message: 'No debts tracked.',
                 ctaLabel: 'Add Debt',
-                onPressCta: () => context.push('/debts/new'),
+                onPressCta: () => showDialog(context: context, builder: (_) => const DebtEditDialog(id: 'new')),
               )
             else ...[
               AppCard(
@@ -162,7 +162,7 @@ class _DebtScreenState extends State<DebtScreen> {
                 children: [
                   for (final d in debts)
                     GestureDetector(
-                      onTap: () => context.push('/debts/${d.id}'),
+                      onTap: () => showDialog(context: context, builder: (_) => DebtEditDialog(id: d.id)),
                       child: AppCard(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,

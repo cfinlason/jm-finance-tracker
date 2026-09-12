@@ -1,22 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
-import '../widgets/app_screen.dart';
+import '../widgets/app_dialog.dart';
 import '../widgets/app_form_field.dart';
 import '../widgets/app_button.dart';
 import '../stores/debts_store.dart';
 
-class DebtEditScreen extends StatefulWidget {
+class DebtEditDialog extends StatefulWidget {
   final String id;
-  const DebtEditScreen({super.key, required this.id});
+  const DebtEditDialog({super.key, required this.id});
 
   @override
-  State<DebtEditScreen> createState() => _DebtEditScreenState();
+  State<DebtEditDialog> createState() => _DebtEditDialogState();
 }
 
-class _DebtEditScreenState extends State<DebtEditScreen> {
+class _DebtEditDialogState extends State<DebtEditDialog> {
   String _name = '';
   String _balanceText = '';
   String _rateText = '';
@@ -56,7 +55,7 @@ class _DebtEditScreenState extends State<DebtEditScreen> {
       } else if (debt != null) {
         debtsStore.updateDebt(debt.id, name: _name, balance: balance, interestRate: interestRate, minPayment: minPayment);
       }
-      context.pop();
+      Navigator.of(context).pop();
     }
 
     void handleDelete() {
@@ -74,7 +73,7 @@ class _DebtEditScreenState extends State<DebtEditScreen> {
               onPressed: () {
                 debtsStore.removeDebt(target.id);
                 Navigator.pop(dialogContext);
-                context.pop();
+                Navigator.of(context).pop();
               },
               child: const Text('Delete', style: TextStyle(color: AppColors.warning)),
             ),
@@ -85,12 +84,12 @@ class _DebtEditScreenState extends State<DebtEditScreen> {
 
     final isValid = _name.isNotEmpty && _balanceText.isNotEmpty && _rateText.isNotEmpty && _minPaymentText.isNotEmpty;
 
-    return AppScreen(
+    return AppDialog(
+      title: isNew ? 'Add Debt' : 'Edit Debt',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(isNew ? 'Add Debt' : 'Edit Debt', style: const TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
-          const SizedBox(height: AppSpacing.lg),
           AppFormField(label: 'Debt name', value: _name, onChanged: (v) => setState(() => _name = v), placeholder: 'e.g. Credit Card'),
           const SizedBox(height: AppSpacing.md),
           AppFormField(label: 'Balance (J\$)', value: _balanceText, onChanged: (v) => setState(() => _balanceText = v), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
