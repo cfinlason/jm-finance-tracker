@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
-import '../widgets/app_screen.dart';
+import '../widgets/app_dialog.dart';
 import '../widgets/app_form_field.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_segmented_control.dart';
@@ -17,15 +16,15 @@ const _frequencies = [
   SegmentOption(label: 'Monthly', value: 'monthly'),
 ];
 
-class RecurringEditScreen extends StatefulWidget {
+class RecurringEditDialog extends StatefulWidget {
   final String id;
-  const RecurringEditScreen({super.key, required this.id});
+  const RecurringEditDialog({super.key, required this.id});
 
   @override
-  State<RecurringEditScreen> createState() => _RecurringEditScreenState();
+  State<RecurringEditDialog> createState() => _RecurringEditDialogState();
 }
 
-class _RecurringEditScreenState extends State<RecurringEditScreen> {
+class _RecurringEditDialogState extends State<RecurringEditDialog> {
   String _name = '';
   String _amountText = '';
   String _frequency = 'monthly';
@@ -72,7 +71,7 @@ class _RecurringEditScreenState extends State<RecurringEditScreen> {
       } else if (rule != null) {
         recurringStore.updateRule(rule.id, name: _name, amount: amount, frequency: _frequency, nextDueDate: _nextDueDate);
       }
-      context.pop();
+      Navigator.of(context).pop();
     }
 
     void handleMarkPaid() {
@@ -95,6 +94,7 @@ class _RecurringEditScreenState extends State<RecurringEditScreen> {
     }
 
     void handleDelete() {
+      final target = rule;
       showDialog(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -105,11 +105,11 @@ class _RecurringEditScreenState extends State<RecurringEditScreen> {
             TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
             TextButton(
               onPressed: () {
-                if (rule != null) {
-                  recurringStore.removeRule(rule.id);
+                if (target != null) {
+                  recurringStore.removeRule(target.id);
                 }
                 Navigator.pop(dialogContext);
-                context.pop();
+                Navigator.of(context).pop();
               },
               child: const Text('Delete', style: TextStyle(color: AppColors.warning)),
             ),
@@ -118,12 +118,12 @@ class _RecurringEditScreenState extends State<RecurringEditScreen> {
       );
     }
 
-    return AppScreen(
+    return AppDialog(
+      title: isNew ? 'Add Recurring Bill' : 'Edit Recurring Bill',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(isNew ? 'Add Recurring Bill' : 'Edit Recurring Bill', style: const TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
-          const SizedBox(height: AppSpacing.lg),
           AppFormField(label: 'Name', value: _name, onChanged: (v) => setState(() => _name = v), placeholder: 'e.g. Netflix'),
           const SizedBox(height: AppSpacing.md),
           AppFormField(label: 'Amount (J\$)', value: _amountText, onChanged: (v) => setState(() => _amountText = v), keyboardType: const TextInputType.numberWithOptions(decimal: true)),

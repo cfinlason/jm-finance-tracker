@@ -28,7 +28,6 @@ import 'screens/cash_flow_screen.dart';
 import 'screens/accounts_management_screen.dart';
 import 'screens/categories_screen.dart';
 import 'screens/recurring_management_screen.dart';
-import 'screens/recurring_edit_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/settings_screen.dart';
 
@@ -95,7 +94,6 @@ GoRouter buildAppRouter({required Listenable refreshListenable}) {
       GoRoute(path: '/accounts', builder: (context, state) => const AccountsManagementScreen()),
       GoRoute(path: '/categories', builder: (context, state) => const CategoriesScreen()),
       GoRoute(path: '/recurring', builder: (context, state) => const RecurringManagementScreen()),
-      GoRoute(path: '/recurring/:id', builder: (context, state) => RecurringEditScreen(id: state.pathParameters['id']!)),
       GoRoute(path: '/notifications', builder: (context, state) => const NotificationsScreen()),
       GoRoute(path: '/settings', builder: (context, state) => const SettingsScreen()),
     ],

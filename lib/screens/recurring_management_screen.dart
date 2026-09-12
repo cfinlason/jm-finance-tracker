@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../theme/app_theme.dart';
@@ -10,6 +9,7 @@ import '../widgets/list_row.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/icon_chip.dart';
 import '../stores/recurring_store.dart';
+import 'recurring_edit_dialog.dart';
 
 class RecurringManagementScreen extends StatelessWidget {
   const RecurringManagementScreen({super.key});
@@ -27,7 +27,7 @@ class RecurringManagementScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Recurring Bills', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
-                IconButton(icon: const Icon(LucideIcons.plus, color: AppColors.accent), onPressed: () => context.push('/recurring/new')),
+                IconButton(icon: const Icon(LucideIcons.plus, color: AppColors.accent), onPressed: () => showDialog(context: context, builder: (_) => const RecurringEditDialog(id: 'new'))),
               ],
             ),
             if (rules.isEmpty)
@@ -35,7 +35,7 @@ class RecurringManagementScreen extends StatelessWidget {
                 icon: const IconChip(child: Icon(LucideIcons.repeat, size: 16, color: AppColors.textMuted)),
                 message: 'No recurring bills.',
                 ctaLabel: 'Add Bill',
-                onPressCta: () => context.push('/recurring/new'),
+                onPressCta: () => showDialog(context: context, builder: (_) => const RecurringEditDialog(id: 'new')),
               )
             else
               AppCard(
@@ -48,7 +48,7 @@ class RecurringManagementScreen extends StatelessWidget {
                         caption: '${rules[i].frequency} · due ${rules[i].nextDueDate.substring(0, 10)}',
                         amount: -rules[i].amount,
                         isLast: i == rules.length - 1,
-                        onTap: () => context.push('/recurring/${rules[i].id}'),
+                        onTap: () => showDialog(context: context, builder: (_) => RecurringEditDialog(id: rules[i].id)),
                       ),
                   ],
                 ),
