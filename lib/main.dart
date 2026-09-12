@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import 'app_router.dart';
 import 'theme/app_theme.dart';
-import 'widgets/phone_frame.dart';
 import 'widgets/error_banner.dart';
 
 import 'stores/error_banner_store.dart';
@@ -74,7 +73,8 @@ class _RouterHostState extends State<_RouterHost> {
       theme: buildAppTheme(),
       routerConfig: _router,
       builder: (context, child) {
-        return PhoneFrame(
+        return ColoredBox(
+          color: AppColors.bg,
           child: Stack(
             children: [
               ?child,
