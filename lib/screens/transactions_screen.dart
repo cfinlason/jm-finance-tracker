@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../theme/app_theme.dart';
@@ -15,6 +14,7 @@ import '../widgets/app_segmented_control.dart';
 import '../stores/transactions_store.dart';
 import '../stores/categories_store.dart';
 import '../stores/accounts_store.dart';
+import 'transaction_edit_dialog.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
@@ -118,7 +118,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         icon: const IconChip(child: Icon(LucideIcons.plus, size: 16, color: AppColors.textMuted)),
                         message: 'No transactions match.',
                         ctaLabel: 'Add Transaction',
-                        onPressCta: () => context.push('/transaction/new'),
+                        onPressCta: () => showDialog(context: context, builder: (_) => const TransactionEditDialog(id: 'new')),
                       ),
                     )
                   : ListView(
@@ -138,7 +138,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                 caption: t.note,
                                 amount: t.amount,
                                 isLast: true,
-                                onTap: () => context.push('/transaction/${t.id}'),
+                                onTap: () => showDialog(context: context, builder: (_) => TransactionEditDialog(id: t.id)),
                               ),
                             ),
                         ],

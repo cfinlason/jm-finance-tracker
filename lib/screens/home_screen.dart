@@ -19,6 +19,7 @@ import '../stores/accounts_store.dart';
 import '../stores/recurring_store.dart';
 import '../stores/transactions_store.dart';
 import '../stores/categories_store.dart';
+import 'transaction_edit_dialog.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -110,7 +111,7 @@ class _HeroSection extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: AppSpacing.xl),
           child: Row(
             children: [
-              Expanded(child: _QuickAction(icon: LucideIcons.plus, label: 'Add Transaction', onTap: () => context.push('/transaction/new'))),
+              Expanded(child: _QuickAction(icon: LucideIcons.plus, label: 'Add Transaction', onTap: () => showDialog(context: context, builder: (_) => const TransactionEditDialog(id: 'new')))),
               Expanded(child: _QuickAction(icon: LucideIcons.creditCard, label: 'View Debt', onTap: () => context.push('/debts'))),
               Expanded(child: _QuickAction(icon: LucideIcons.trendingUp, label: 'Cash Flow', onTap: () => context.push('/cash-flow'))),
             ],
@@ -139,7 +140,7 @@ class _RecentTransactionsSection extends StatelessWidget {
             icon: const IconChip(child: Icon(LucideIcons.plus, size: 16, color: AppColors.textMuted)),
             message: 'No transactions yet.',
             ctaLabel: 'Add Transaction',
-            onPressCta: () => context.push('/transaction/new'),
+            onPressCta: () => showDialog(context: context, builder: (_) => const TransactionEditDialog(id: 'new')),
           )
         else
           AppCard(
@@ -152,7 +153,7 @@ class _RecentTransactionsSection extends StatelessWidget {
                     caption: recentTop5[i].note.isNotEmpty ? recentTop5[i].note : recentTop5[i].date.substring(0, 10),
                     amount: recentTop5[i].amount,
                     isLast: i == recentTop5.length - 1,
-                    onTap: () => context.push('/transaction/${recentTop5[i].id}'),
+                    onTap: () => showDialog(context: context, builder: (_) => TransactionEditDialog(id: recentTop5[i].id)),
                   ),
               ],
             ),

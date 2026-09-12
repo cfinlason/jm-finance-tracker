@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
-import '../widgets/app_screen.dart';
+import '../widgets/app_dialog.dart';
 import '../widgets/app_form_field.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_segmented_control.dart';
@@ -13,15 +12,15 @@ import '../stores/transactions_store.dart';
 import '../stores/goals_store.dart';
 import '../logic/transaction_actions.dart';
 
-class TransactionEditScreen extends StatefulWidget {
+class TransactionEditDialog extends StatefulWidget {
   final String id;
-  const TransactionEditScreen({super.key, required this.id});
+  const TransactionEditDialog({super.key, required this.id});
 
   @override
-  State<TransactionEditScreen> createState() => _TransactionEditScreenState();
+  State<TransactionEditDialog> createState() => _TransactionEditDialogState();
 }
 
-class _TransactionEditScreenState extends State<TransactionEditScreen> {
+class _TransactionEditDialogState extends State<TransactionEditDialog> {
   late String _type;
   late String _amountText;
   late String _accountId;
@@ -70,8 +69,9 @@ class _TransactionEditScreenState extends State<TransactionEditScreen> {
         setState(() => _error = 'Enter a valid amount, account, and category.');
         return;
       }
-      final resolvedAmount = amount;
-      final signedAmount = _type == 'income' ? resolvedAmount : -resolvedAmount;
+      // amount is guaranteed non-null because isValid checks amount != null
+      // ignore: unnecessary_non_null_assertion
+      final signedAmount = _type == 'income' ? amount! : -amount!;
       if (isNew) {
         actions.createTransaction(
           accountId: _accountId,
@@ -84,11 +84,12 @@ class _TransactionEditScreenState extends State<TransactionEditScreen> {
       } else if (existing != null) {
         actions.editTransaction(existing.id, accountId: _accountId, categoryId: _categoryId, amount: signedAmount, note: _note, type: _type);
       }
-      context.pop();
+      Navigator.of(context).pop();
     }
 
     void handleDelete() {
-      if (existing == null) return;
+      final target = existing;
+      if (target == null) return;
       showDialog(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -99,9 +100,9 @@ class _TransactionEditScreenState extends State<TransactionEditScreen> {
             TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
             TextButton(
               onPressed: () {
-                actions.deleteTransaction(existing!.id);
+                actions.deleteTransaction(target.id);
                 Navigator.pop(dialogContext);
-                context.pop();
+                Navigator.of(context).pop();
               },
               child: const Text('Delete', style: TextStyle(color: AppColors.warning)),
             ),
@@ -110,12 +111,12 @@ class _TransactionEditScreenState extends State<TransactionEditScreen> {
       );
     }
 
-    return AppScreen(
+    return AppDialog(
+      title: isNew ? 'Add Transaction' : 'Edit Transaction',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(isNew ? 'Add Transaction' : 'Edit Transaction', style: const TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
-          const SizedBox(height: AppSpacing.lg),
           AppSegmentedControl<String>(
             options: const [SegmentOption(label: 'Expense', value: 'expense'), SegmentOption(label: 'Income', value: 'income')],
             value: _type,
