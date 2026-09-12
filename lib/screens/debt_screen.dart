@@ -3,7 +3,9 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../theme/app_theme.dart';
+import '../theme/breakpoints.dart';
 import '../widgets/app_screen.dart';
+import '../widgets/content_bounds.dart';
 import '../widgets/app_card.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/icon_chip.dart';
@@ -69,106 +71,117 @@ class _DebtScreenState extends State<DebtScreen> {
     final result = _strategy == 'snowball' ? projection.snowball : projection.avalanche;
 
     return AppScreen(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Debt', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
-              IconButton(icon: const Icon(LucideIcons.plus, color: AppColors.accent), onPressed: () => context.push('/debts/new')),
-            ],
-          ),
-          if (debts.isEmpty)
-            EmptyState(
-              icon: const IconChip(child: Icon(LucideIcons.creditCard, size: 16, color: AppColors.textMuted)),
-              message: 'No debts tracked.',
-              ctaLabel: 'Add Debt',
-              onPressCta: () => context.push('/debts/new'),
-            )
-          else ...[
-            AppCard(
-              margin: const EdgeInsets.only(bottom: AppSpacing.lg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('TOTAL OWED', style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.1)),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    formatMoney(totalOwed),
-                    style: const TextStyle(color: AppColors.text, fontSize: 32, fontWeight: FontWeight.w800, fontFeatures: [FontFeature.tabularFigures()]),
-                  ),
-                ],
-              ),
+      child: ContentBounds(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Debt', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+                IconButton(icon: const Icon(LucideIcons.plus, color: AppColors.accent), onPressed: () => context.push('/debts/new')),
+              ],
             ),
-            AppCard(
-              emphasis: true,
-              margin: const EdgeInsets.only(bottom: AppSpacing.lg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Payoff Projection', style: TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: AppSpacing.md),
-                  AppSegmentedControl<String>(
-                    options: const [SegmentOption(label: 'Snowball', value: 'snowball'), SegmentOption(label: 'Avalanche', value: 'avalanche')],
-                    value: _strategy,
-                    onChanged: (v) => setState(() => _strategy = v),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  AppFormField(
-                    label: 'Extra monthly payment (J\$)',
-                    value: _extraText,
-                    onChanged: (v) => setState(() => _extraText = v),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('MONTHS TO DEBT-FREE', style: TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.w600)),
-                          const SizedBox(height: 4),
-                          Text('${result.months}', style: const TextStyle(color: AppColors.accent, fontSize: 22, fontWeight: FontWeight.w800)),
-                        ],
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('TOTAL INTEREST', style: TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.w600)),
-                          const SizedBox(height: 4),
-                          Text(
-                            formatMoney(result.totalInterest),
-                            style: const TextStyle(color: AppColors.accent, fontSize: 22, fontWeight: FontWeight.w800, fontFeatures: [FontFeature.tabularFigures()]),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            for (final d in debts)
-              GestureDetector(
-                onTap: () => context.push('/debts/${d.id}'),
-                child: AppCard(
-                  margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(d.name, style: const TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${formatMoney(d.balance)} · ${d.interestRate}% APR · Min ${formatMoney(d.minPayment)}',
-                        style: const TextStyle(color: AppColors.textMuted, fontSize: 12, fontFeatures: [FontFeature.tabularFigures()]),
-                      ),
-                    ],
-                  ),
+            if (debts.isEmpty)
+              EmptyState(
+                icon: const IconChip(child: Icon(LucideIcons.creditCard, size: 16, color: AppColors.textMuted)),
+                message: 'No debts tracked.',
+                ctaLabel: 'Add Debt',
+                onPressCta: () => context.push('/debts/new'),
+              )
+            else ...[
+              AppCard(
+                margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('TOTAL OWED', style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.1)),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      formatMoney(totalOwed),
+                      style: const TextStyle(color: AppColors.text, fontSize: 32, fontWeight: FontWeight.w800, fontFeatures: [FontFeature.tabularFigures()]),
+                    ),
+                  ],
                 ),
               ),
+              AppCard(
+                emphasis: true,
+                margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Payoff Projection', style: TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: AppSpacing.md),
+                    AppSegmentedControl<String>(
+                      options: const [SegmentOption(label: 'Snowball', value: 'snowball'), SegmentOption(label: 'Avalanche', value: 'avalanche')],
+                      value: _strategy,
+                      onChanged: (v) => setState(() => _strategy = v),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    AppFormField(
+                      label: 'Extra monthly payment (J\$)',
+                      value: _extraText,
+                      onChanged: (v) => setState(() => _extraText = v),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('MONTHS TO DEBT-FREE', style: TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 4),
+                            Text('${result.months}', style: const TextStyle(color: AppColors.accent, fontSize: 22, fontWeight: FontWeight.w800)),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('TOTAL INTEREST', style: TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 4),
+                            Text(
+                              formatMoney(result.totalInterest),
+                              style: const TextStyle(color: AppColors.accent, fontSize: 22, fontWeight: FontWeight.w800, fontFeatures: [FontFeature.tabularFigures()]),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              GridView.count(
+                crossAxisCount: isExpanded(context) ? 2 : 1,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: AppSpacing.sm,
+                crossAxisSpacing: AppSpacing.md,
+                childAspectRatio: isExpanded(context) ? 3.4 : 4.2,
+                children: [
+                  for (final d in debts)
+                    GestureDetector(
+                      onTap: () => context.push('/debts/${d.id}'),
+                      child: AppCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(d.name, style: const TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${formatMoney(d.balance)} · ${d.interestRate}% APR · Min ${formatMoney(d.minPayment)}',
+                              style: const TextStyle(color: AppColors.textMuted, fontSize: 12, fontFeatures: [FontFeature.tabularFigures()]),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
