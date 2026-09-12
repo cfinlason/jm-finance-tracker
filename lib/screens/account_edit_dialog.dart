@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
-import '../widgets/app_screen.dart';
+import '../widgets/app_dialog.dart';
 import '../widgets/app_form_field.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_segmented_control.dart';
@@ -19,15 +18,15 @@ const _accountTypes = [
   SegmentOption(label: 'Credit', value: 'credit'),
 ];
 
-class AccountEditScreen extends StatefulWidget {
+class AccountEditDialog extends StatefulWidget {
   final String id;
-  const AccountEditScreen({super.key, required this.id});
+  const AccountEditDialog({super.key, required this.id});
 
   @override
-  State<AccountEditScreen> createState() => _AccountEditScreenState();
+  State<AccountEditDialog> createState() => _AccountEditDialogState();
 }
 
-class _AccountEditScreenState extends State<AccountEditScreen> {
+class _AccountEditDialogState extends State<AccountEditDialog> {
   String _name = '';
   String _type = 'checking';
   String _balanceText = '0';
@@ -63,16 +62,18 @@ class _AccountEditScreenState extends State<AccountEditScreen> {
       } else if (account != null) {
         accountsStore.updateAccount(account.id, name: _name, type: _type, balance: balance);
       }
-      context.pop();
+      Navigator.of(context).pop();
     }
 
     void handleDelete() {
+      final target = account;
+      if (target == null) return;
       final accountActions = AccountActions(
         accountsStore: accountsStore,
         transactionsStore: context.read<TransactionsStore>(),
         recurringStore: context.read<RecurringStore>(),
       );
-      final dependents = accountActions.countDependents(account!.id);
+      final dependents = accountActions.countDependents(target.id);
       final hasDependents = dependents.transactionCount > 0 || dependents.recurringRuleCount > 0;
       final message = hasDependents
           ? 'Delete account? This will also delete ${dependents.transactionCount} associated transaction(s) '
@@ -89,9 +90,9 @@ class _AccountEditScreenState extends State<AccountEditScreen> {
             TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
             TextButton(
               onPressed: () {
-                accountActions.deleteAccountCascade(account!.id);
+                accountActions.deleteAccountCascade(target.id);
                 Navigator.pop(dialogContext);
-                context.pop();
+                Navigator.of(context).pop();
               },
               child: const Text('Delete', style: TextStyle(color: AppColors.warning)),
             ),
@@ -100,12 +101,12 @@ class _AccountEditScreenState extends State<AccountEditScreen> {
       );
     }
 
-    return AppScreen(
+    return AppDialog(
+      title: isNew ? 'Add Account' : 'Edit Account',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(isNew ? 'Add Account' : 'Edit Account', style: const TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
-          const SizedBox(height: AppSpacing.lg),
           AppFormField(label: 'Account name', value: _name, onChanged: (v) => setState(() => _name = v), placeholder: 'e.g. NCB Checking'),
           const SizedBox(height: AppSpacing.md),
           AppSegmentedControl<String>(options: _accountTypes, value: _type, onChanged: (v) => setState(() => _type = v)),

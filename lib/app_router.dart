@@ -26,7 +26,6 @@ import 'screens/debt_screen.dart';
 import 'screens/debt_edit_screen.dart';
 import 'screens/cash_flow_screen.dart';
 import 'screens/accounts_management_screen.dart';
-import 'screens/account_edit_screen.dart';
 import 'screens/categories_screen.dart';
 import 'screens/category_add_screen.dart';
 import 'screens/recurring_management_screen.dart';
@@ -95,7 +94,6 @@ GoRouter buildAppRouter({required Listenable refreshListenable}) {
       GoRoute(path: '/debts/:id', builder: (context, state) => DebtEditScreen(id: state.pathParameters['id']!)),
       GoRoute(path: '/cash-flow', builder: (context, state) => const CashFlowScreen()),
       GoRoute(path: '/accounts', builder: (context, state) => const AccountsManagementScreen()),
-      GoRoute(path: '/accounts/:id', builder: (context, state) => AccountEditScreen(id: state.pathParameters['id']!)),
       GoRoute(path: '/categories', builder: (context, state) => const CategoriesScreen()),
       GoRoute(path: '/categories/add', builder: (context, state) => const CategoryAddScreen()),
       GoRoute(path: '/recurring', builder: (context, state) => const RecurringManagementScreen()),
