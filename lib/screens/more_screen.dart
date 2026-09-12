@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_screen.dart';
+import '../widgets/content_bounds.dart';
 import '../widgets/app_card.dart';
 import '../widgets/list_row.dart';
 
@@ -27,35 +28,37 @@ class MoreScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppScreen(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('More', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
-          const SizedBox(height: AppSpacing.lg),
-          AppCard(
-            child: Column(
-              children: [
-                for (var i = 0; i < _items.length; i++)
-                  ListRow(
-                    icon: Icon(_items[i].icon, size: 16, color: AppColors.textSecondary),
-                    title: _items[i].label,
-                    showChevron: true,
-                    isLast: i == _items.length - 1,
-                    onTap: () => context.push(_items[i].route),
-                  ),
+      child: ContentBounds(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('More', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+            const SizedBox(height: AppSpacing.lg),
+            AppCard(
+              child: Column(
+                children: [
+                  for (var i = 0; i < _items.length; i++)
+                    ListRow(
+                      icon: Icon(_items[i].icon, size: 16, color: AppColors.textSecondary),
+                      title: _items[i].label,
+                      showChevron: true,
+                      isLast: i == _items.length - 1,
+                      onTap: () => context.push(_items[i].route),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xxl),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: const [
+                Icon(LucideIcons.info, size: 14, color: AppColors.textMuted),
+                SizedBox(width: AppSpacing.sm),
+                Text('JM Finance Tracker v1.0', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
               ],
             ),
-          ),
-          const SizedBox(height: AppSpacing.xxl),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              Icon(LucideIcons.info, size: 14, color: AppColors.textMuted),
-              SizedBox(width: AppSpacing.sm),
-              Text('JM Finance Tracker v1.0', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

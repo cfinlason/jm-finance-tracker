@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_screen.dart';
+import '../widgets/content_bounds.dart';
 import '../widgets/app_card.dart';
 import '../widgets/list_row.dart';
 import '../widgets/empty_state.dart';
@@ -37,28 +38,30 @@ class NotificationsScreen extends StatelessWidget {
     ];
 
     return AppScreen(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Notifications', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
-          const SizedBox(height: AppSpacing.lg),
-          if (notifications.isEmpty)
-            const EmptyState(icon: IconChip(child: Icon(LucideIcons.bell, size: 16, color: AppColors.textMuted)), message: 'No notifications.')
-          else
-            AppCard(
-              child: Column(
-                children: [
-                  for (var i = 0; i < notifications.length; i++)
-                    ListRow(
-                      icon: const Icon(LucideIcons.bell, size: 16, color: AppColors.textSecondary),
-                      title: notifications[i].title,
-                      caption: notifications[i].caption,
-                      isLast: i == notifications.length - 1,
-                    ),
-                ],
+      child: ContentBounds(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Notifications', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+            const SizedBox(height: AppSpacing.lg),
+            if (notifications.isEmpty)
+              const EmptyState(icon: IconChip(child: Icon(LucideIcons.bell, size: 16, color: AppColors.textMuted)), message: 'No notifications.')
+            else
+              AppCard(
+                child: Column(
+                  children: [
+                    for (var i = 0; i < notifications.length; i++)
+                      ListRow(
+                        icon: const Icon(LucideIcons.bell, size: 16, color: AppColors.textSecondary),
+                        title: notifications[i].title,
+                        caption: notifications[i].caption,
+                        isLast: i == notifications.length - 1,
+                      ),
+                  ],
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

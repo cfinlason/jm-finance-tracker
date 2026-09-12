@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_screen.dart';
+import '../widgets/content_bounds.dart';
 import '../widgets/app_card.dart';
 import '../widgets/list_row.dart';
 import '../widgets/category_icon.dart';
@@ -39,31 +40,33 @@ class CategoriesScreen extends StatelessWidget {
     }
 
     return AppScreen(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Categories', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
-              IconButton(icon: const Icon(LucideIcons.plus, color: AppColors.accent), onPressed: () => context.push('/categories/add')),
-            ],
-          ),
-          AppCard(
-            child: Column(
+      child: ContentBounds(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                for (var i = 0; i < categories.length; i++)
-                  ListRow(
-                    icon: CategoryIcon(name: categories[i].icon),
-                    title: categories[i].name,
-                    caption: categories[i].isCustom ? 'Custom — tap to remove' : 'Preset',
-                    isLast: i == categories.length - 1,
-                    onTap: categories[i].isCustom ? () => handleDelete(categories[i].id) : null,
-                  ),
+                const Text('Categories', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+                IconButton(icon: const Icon(LucideIcons.plus, color: AppColors.accent), onPressed: () => context.push('/categories/add')),
               ],
             ),
-          ),
-        ],
+            AppCard(
+              child: Column(
+                children: [
+                  for (var i = 0; i < categories.length; i++)
+                    ListRow(
+                      icon: CategoryIcon(name: categories[i].icon),
+                      title: categories[i].name,
+                      caption: categories[i].isCustom ? 'Custom — tap to remove' : 'Preset',
+                      isLast: i == categories.length - 1,
+                      onTap: categories[i].isCustom ? () => handleDelete(categories[i].id) : null,
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

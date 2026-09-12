@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
 import '../widgets/app_screen.dart';
+import '../widgets/content_bounds.dart';
 import '../widgets/app_card.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/icon_chip.dart';
@@ -24,16 +25,18 @@ class InsightsScreen extends StatelessWidget {
 
     if (transactions.isEmpty) {
       return AppScreen(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Insights', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
-            const SizedBox(height: AppSpacing.lg),
-            const EmptyState(
-              icon: IconChip(child: Icon(LucideIcons.pieChart, size: 16, color: AppColors.textMuted)),
-              message: 'Add transactions to see insights.',
-            ),
-          ],
+        child: ContentBounds(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Insights', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+              const SizedBox(height: AppSpacing.lg),
+              const EmptyState(
+                icon: IconChip(child: Icon(LucideIcons.pieChart, size: 16, color: AppColors.textMuted)),
+                message: 'Add transactions to see insights.',
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -54,74 +57,76 @@ class InsightsScreen extends StatelessWidget {
     }
 
     return AppScreen(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Insights', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
-          const SizedBox(height: AppSpacing.lg),
-          const Text('Category Breakdown', style: TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w700)),
-          const SizedBox(height: AppSpacing.sm),
-          AppCard(
-            margin: const EdgeInsets.only(bottom: AppSpacing.lg),
-            child: Column(
-              children: [
-                for (var i = 0; i < totals.length; i++)
-                  _InsightRow(
-                    icon: CategoryIcon(name: categoryFor(totals[i].categoryId)?.icon ?? 'more-horizontal'),
-                    title: categoryFor(totals[i].categoryId)?.name ?? 'Uncategorized',
-                    subtitle: totals[i].percentChange != null
-                        ? '${totals[i].percentChange! > 0 ? '+' : ''}${totals[i].percentChange}% vs last period'
-                        : null,
-                    amount: formatMoney(totals[i].total),
-                    isLast: i == totals.length - 1,
-                  ),
-              ],
-            ),
-          ),
-          const Text('Weekly Trend', style: TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w700)),
-          const SizedBox(height: AppSpacing.sm),
-          AppCard(
-            margin: const EdgeInsets.only(bottom: AppSpacing.lg),
-            child: Column(
-              children: [
-                for (final bucket in trend)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                    child: Row(
-                      children: [
-                        Expanded(child: Text(bucket.label, style: const TextStyle(color: AppColors.textMuted, fontSize: 12))),
-                        Text(
-                          '+${formatMoney(bucket.income)}',
-                          style: const TextStyle(color: AppColors.accent, fontSize: 13, fontWeight: FontWeight.w700, fontFeatures: [FontFeature.tabularFigures()]),
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        Text(
-                          '-${formatMoney(bucket.spending)}',
-                          style: const TextStyle(color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w700, fontFeatures: [FontFeature.tabularFigures()]),
-                        ),
-                      ],
+      child: ContentBounds(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Insights', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+            const SizedBox(height: AppSpacing.lg),
+            const Text('Category Breakdown', style: TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w700)),
+            const SizedBox(height: AppSpacing.sm),
+            AppCard(
+              margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+              child: Column(
+                children: [
+                  for (var i = 0; i < totals.length; i++)
+                    _InsightRow(
+                      icon: CategoryIcon(name: categoryFor(totals[i].categoryId)?.icon ?? 'more-horizontal'),
+                      title: categoryFor(totals[i].categoryId)?.name ?? 'Uncategorized',
+                      subtitle: totals[i].percentChange != null
+                          ? '${totals[i].percentChange! > 0 ? '+' : ''}${totals[i].percentChange}% vs last period'
+                          : null,
+                      amount: formatMoney(totals[i].total),
+                      isLast: i == totals.length - 1,
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const Text('Top Transactions', style: TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w700)),
-          const SizedBox(height: AppSpacing.sm),
-          AppCard(
-            child: Column(
-              children: [
-                for (var i = 0; i < top5.length; i++)
-                  _InsightRow(
-                    icon: CategoryIcon(name: categoryFor(top5[i].categoryId)?.icon ?? 'more-horizontal'),
-                    title: categoryFor(top5[i].categoryId)?.name ?? 'Uncategorized',
-                    subtitle: null,
-                    amount: formatMoney(top5[i].amount),
-                    isLast: i == top5.length - 1,
-                  ),
-              ],
+            const Text('Weekly Trend', style: TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w700)),
+            const SizedBox(height: AppSpacing.sm),
+            AppCard(
+              margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+              child: Column(
+                children: [
+                  for (final bucket in trend)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                      child: Row(
+                        children: [
+                          Expanded(child: Text(bucket.label, style: const TextStyle(color: AppColors.textMuted, fontSize: 12))),
+                          Text(
+                            '+${formatMoney(bucket.income)}',
+                            style: const TextStyle(color: AppColors.accent, fontSize: 13, fontWeight: FontWeight.w700, fontFeatures: [FontFeature.tabularFigures()]),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Text(
+                            '-${formatMoney(bucket.spending)}',
+                            style: const TextStyle(color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w700, fontFeatures: [FontFeature.tabularFigures()]),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
+            const Text('Top Transactions', style: TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w700)),
+            const SizedBox(height: AppSpacing.sm),
+            AppCard(
+              child: Column(
+                children: [
+                  for (var i = 0; i < top5.length; i++)
+                    _InsightRow(
+                      icon: CategoryIcon(name: categoryFor(top5[i].categoryId)?.icon ?? 'more-horizontal'),
+                      title: categoryFor(top5[i].categoryId)?.name ?? 'Uncategorized',
+                      subtitle: null,
+                      amount: formatMoney(top5[i].amount),
+                      isLast: i == top5.length - 1,
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
