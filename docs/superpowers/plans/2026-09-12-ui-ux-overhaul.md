@@ -1306,3 +1306,1114 @@ git add lib/screens/transaction_edit_dialog.dart lib/screens/home_screen.dart li
 git rm lib/screens/transaction_edit_screen.dart
 git commit -m "feat: convert Add/Edit Transaction to a popup dialog"
 ```
+
+### Task 10: Account popup dialog
+
+**Files:**
+- Create: `lib/screens/account_edit_dialog.dart`
+- Delete: `lib/screens/account_edit_screen.dart`
+- Modify: `lib/screens/accounts_management_screen.dart`
+- Modify: `lib/app_router.dart`
+
+**Interfaces:**
+- Consumes: `AppDialog` (Task 2), `AccountActions` (`lib/logic/account_actions.dart`, unchanged), `AccountsStore`/`TransactionsStore`/`RecurringStore` (unchanged)
+- Produces: `AccountEditDialog({required String id})` — a `StatefulWidget` shown via `showDialog`
+
+- [ ] **Step 1: Create `lib/screens/account_edit_dialog.dart`**
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../theme/app_theme.dart';
+import '../models/models.dart';
+import '../widgets/app_dialog.dart';
+import '../widgets/app_form_field.dart';
+import '../widgets/app_button.dart';
+import '../widgets/app_segmented_control.dart';
+import '../stores/accounts_store.dart';
+import '../stores/transactions_store.dart';
+import '../stores/recurring_store.dart';
+import '../logic/account_actions.dart';
+
+const _accountTypes = [
+  SegmentOption(label: 'Checking', value: 'checking'),
+  SegmentOption(label: 'Savings', value: 'savings'),
+  SegmentOption(label: 'Cash', value: 'cash'),
+  SegmentOption(label: 'Credit', value: 'credit'),
+];
+
+class AccountEditDialog extends StatefulWidget {
+  final String id;
+  const AccountEditDialog({super.key, required this.id});
+
+  @override
+  State<AccountEditDialog> createState() => _AccountEditDialogState();
+}
+
+class _AccountEditDialogState extends State<AccountEditDialog> {
+  String _name = '';
+  String _type = 'checking';
+  String _balanceText = '0';
+  bool _initialized = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final accountsStore = context.watch<AccountsStore>();
+    final isNew = widget.id == 'new';
+
+    Account? account;
+    if (!isNew) {
+      for (final a in accountsStore.accounts) {
+        if (a.id == widget.id) {
+          account = a;
+          break;
+        }
+      }
+    }
+
+    if (!_initialized) {
+      _name = account?.name ?? '';
+      _type = account?.type ?? 'checking';
+      _balanceText = account != null ? account.balance.toString() : '0';
+      _initialized = true;
+    }
+
+    void handleSave() {
+      final balance = double.tryParse(_balanceText);
+      if (_name.isEmpty || balance == null) return;
+      if (isNew) {
+        accountsStore.addAccount(name: _name, type: _type, balance: balance);
+      } else if (account != null) {
+        accountsStore.updateAccount(account.id, name: _name, type: _type, balance: balance);
+      }
+      Navigator.of(context).pop();
+    }
+
+    void handleDelete() {
+      final target = account;
+      if (target == null) return;
+      final accountActions = AccountActions(
+        accountsStore: accountsStore,
+        transactionsStore: context.read<TransactionsStore>(),
+        recurringStore: context.read<RecurringStore>(),
+      );
+      final dependents = accountActions.countDependents(target.id);
+      final hasDependents = dependents.transactionCount > 0 || dependents.recurringRuleCount > 0;
+      final message = hasDependents
+          ? 'Delete account? This will also delete ${dependents.transactionCount} associated transaction(s) '
+              'and ${dependents.recurringRuleCount} recurring bill(s). This cannot be undone.'
+          : 'This cannot be undone.';
+
+      showDialog(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: const Text('Delete account?', style: TextStyle(color: AppColors.text)),
+          content: Text(message, style: const TextStyle(color: AppColors.textSecondary)),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () {
+                accountActions.deleteAccountCascade(target.id);
+                Navigator.pop(dialogContext);
+                Navigator.of(context).pop();
+              },
+              child: const Text('Delete', style: TextStyle(color: AppColors.warning)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return AppDialog(
+      title: isNew ? 'Add Account' : 'Edit Account',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppFormField(label: 'Account name', value: _name, onChanged: (v) => setState(() => _name = v), placeholder: 'e.g. NCB Checking'),
+          const SizedBox(height: AppSpacing.md),
+          AppSegmentedControl<String>(options: _accountTypes, value: _type, onChanged: (v) => setState(() => _type = v)),
+          const SizedBox(height: AppSpacing.md),
+          AppFormField(label: 'Balance (J\$)', value: _balanceText, onChanged: (v) => setState(() => _balanceText = v), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+          const SizedBox(height: AppSpacing.xl),
+          AppButton(label: 'Save', onPressed: (_name.isNotEmpty && _balanceText.isNotEmpty) ? handleSave : null),
+          if (!isNew && account != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            AppButton(label: 'Delete', variant: AppButtonVariant.secondary, onPressed: handleDelete),
+          ],
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Delete `lib/screens/account_edit_screen.dart`**
+
+- [ ] **Step 3: Wire `lib/screens/accounts_management_screen.dart` to open the dialog**
+
+Add the import:
+
+```dart
+import 'account_edit_dialog.dart';
+```
+
+Replace both `onPressed: () => context.push('/accounts/new')` call sites (the `IconButton` and the `EmptyState`'s `onPressCta`) with:
+
+```dart
+onPressed: () => showDialog(context: context, builder: (_) => const AccountEditDialog(id: 'new')),
+```
+
+(For the `EmptyState`, the parameter is `onPressCta:` — same replacement body.)
+
+Replace the `ListRow`'s `onTap: () => context.push('/accounts/${accounts[i].id}')` with:
+
+```dart
+onTap: () => showDialog(context: context, builder: (_) => AccountEditDialog(id: accounts[i].id)),
+```
+
+- [ ] **Step 4: Remove the account route from `lib/app_router.dart`**
+
+Delete this line:
+
+```dart
+GoRoute(path: '/accounts/:id', builder: (context, state) => AccountEditScreen(id: state.pathParameters['id']!)),
+```
+
+Delete the now-unused import:
+
+```dart
+import 'screens/account_edit_screen.dart';
+```
+
+- [ ] **Step 5: Verify it compiles and builds**
+
+Run: `flutter analyze lib` — expected `No issues found!`
+Run: `flutter build web` — expected `√ Built build/web`.
+
+- [ ] **Step 6: Verify in the browser**
+
+From Accounts, tap "+" — confirm a popup opens, save a new account, confirm it appears and the popup closed. Tap an existing account row, confirm it pre-fills, edit and save, confirm the popup closes and change is reflected. Tap Delete on an account with transactions, confirm the cascade-delete confirmation message shows the correct counts, confirm Delete removes everything and closes both dialogs.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add lib/screens/account_edit_dialog.dart lib/screens/accounts_management_screen.dart lib/app_router.dart
+git rm lib/screens/account_edit_screen.dart
+git commit -m "feat: convert Add/Edit Account to a popup dialog"
+```
+
+### Task 11: Category popup dialog
+
+**Files:**
+- Create: `lib/screens/category_add_dialog.dart`
+- Delete: `lib/screens/category_add_screen.dart`
+- Modify: `lib/screens/categories_screen.dart`
+- Modify: `lib/app_router.dart`
+
+**Interfaces:**
+- Consumes: `AppDialog` (Task 2), `CategoriesStore` (unchanged)
+- Produces: `CategoryAddDialog` — a `StatefulWidget` shown via `showDialog` (create-only; categories have no edit form, only delete, which stays inline on the list screen as today)
+
+- [ ] **Step 1: Create `lib/screens/category_add_dialog.dart`**
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../theme/app_theme.dart';
+import '../widgets/app_dialog.dart';
+import '../widgets/app_form_field.dart';
+import '../widgets/app_button.dart';
+import '../widgets/app_segmented_control.dart';
+import '../stores/categories_store.dart';
+
+class CategoryAddDialog extends StatefulWidget {
+  const CategoryAddDialog({super.key});
+
+  @override
+  State<CategoryAddDialog> createState() => _CategoryAddDialogState();
+}
+
+class _CategoryAddDialogState extends State<CategoryAddDialog> {
+  String _name = '';
+  String _kind = 'expense';
+
+  @override
+  Widget build(BuildContext context) {
+    final categoriesStore = context.watch<CategoriesStore>();
+
+    void handleSave() {
+      if (_name.isEmpty) return;
+      categoriesStore.addCategory(_name, 'more-horizontal', _kind == 'income');
+      Navigator.of(context).pop();
+    }
+
+    return AppDialog(
+      title: 'Add Category',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppFormField(label: 'Category name', value: _name, onChanged: (v) => setState(() => _name = v), placeholder: 'e.g. Subscriptions'),
+          const SizedBox(height: AppSpacing.md),
+          AppSegmentedControl<String>(
+            options: const [SegmentOption(label: 'Expense', value: 'expense'), SegmentOption(label: 'Income', value: 'income')],
+            value: _kind,
+            onChanged: (v) => setState(() => _kind = v),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          AppButton(label: 'Save', onPressed: _name.isNotEmpty ? handleSave : null),
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Delete `lib/screens/category_add_screen.dart`**
+
+- [ ] **Step 3: Wire `lib/screens/categories_screen.dart` to open the dialog**
+
+Add the import:
+
+```dart
+import 'category_add_dialog.dart';
+```
+
+Replace `onPressed: () => context.push('/categories/add')` on the `IconButton` with:
+
+```dart
+onPressed: () => showDialog(context: context, builder: (_) => const CategoryAddDialog()),
+```
+
+(The `handleDelete` inline confirmation and `ListRow.onTap` for custom categories stay unchanged — deletion was never a routed screen.)
+
+- [ ] **Step 4: Remove the category-add route from `lib/app_router.dart`**
+
+Delete this line:
+
+```dart
+GoRoute(path: '/categories/add', builder: (context, state) => const CategoryAddScreen()),
+```
+
+Delete the now-unused import:
+
+```dart
+import 'screens/category_add_screen.dart';
+```
+
+- [ ] **Step 5: Verify it compiles and builds**
+
+Run: `flutter analyze lib` — expected `No issues found!`
+Run: `flutter build web` — expected `√ Built build/web`.
+
+- [ ] **Step 6: Verify in the browser**
+
+From Categories, tap "+", confirm a popup opens, save a new category, confirm it appears in the list and the popup closed itself. Confirm deleting a custom category still works via its existing inline confirmation dialog (unchanged).
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add lib/screens/category_add_dialog.dart lib/screens/categories_screen.dart lib/app_router.dart
+git rm lib/screens/category_add_screen.dart
+git commit -m "feat: convert Add Category to a popup dialog"
+```
+
+### Task 12: Recurring Bill popup dialog
+
+**Files:**
+- Create: `lib/screens/recurring_edit_dialog.dart`
+- Delete: `lib/screens/recurring_edit_screen.dart`
+- Modify: `lib/screens/recurring_management_screen.dart`
+- Modify: `lib/app_router.dart`
+
+**Interfaces:**
+- Consumes: `AppDialog` (Task 2), `RecurringStore`/`AccountsStore`/`CategoriesStore` (unchanged, including `RecurringStore.advanceNextDueDate`)
+- Produces: `RecurringEditDialog({required String id})` — a `StatefulWidget` shown via `showDialog`
+
+This task ports `recurring_edit_screen.dart` **as it exists today** (including its due-date picker and "Mark Paid" button added by the earlier CRUD-audit fix) into dialog form — no behavior changes beyond the dialog chrome and `pop()` mechanics.
+
+- [ ] **Step 1: Create `lib/screens/recurring_edit_dialog.dart`**
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../theme/app_theme.dart';
+import '../models/models.dart';
+import '../widgets/app_dialog.dart';
+import '../widgets/app_form_field.dart';
+import '../widgets/app_button.dart';
+import '../widgets/app_segmented_control.dart';
+import '../stores/recurring_store.dart';
+import '../stores/accounts_store.dart';
+import '../stores/categories_store.dart';
+
+const _frequencies = [
+  SegmentOption(label: 'Weekly', value: 'weekly'),
+  SegmentOption(label: 'Biweekly', value: 'biweekly'),
+  SegmentOption(label: 'Monthly', value: 'monthly'),
+];
+
+class RecurringEditDialog extends StatefulWidget {
+  final String id;
+  const RecurringEditDialog({super.key, required this.id});
+
+  @override
+  State<RecurringEditDialog> createState() => _RecurringEditDialogState();
+}
+
+class _RecurringEditDialogState extends State<RecurringEditDialog> {
+  String _name = '';
+  String _amountText = '';
+  String _frequency = 'monthly';
+  String _nextDueDate = '';
+  bool _initialized = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final recurringStore = context.watch<RecurringStore>();
+    final accountsStore = context.watch<AccountsStore>();
+    final categoriesStore = context.watch<CategoriesStore>();
+    final isNew = widget.id == 'new';
+
+    RecurringRule? rule;
+    if (!isNew) {
+      for (final r in recurringStore.rules) {
+        if (r.id == widget.id) {
+          rule = r;
+          break;
+        }
+      }
+    }
+
+    if (!_initialized) {
+      _name = rule?.name ?? '';
+      _amountText = rule != null ? rule.amount.toString() : '';
+      _frequency = rule?.frequency ?? 'monthly';
+      _nextDueDate = rule?.nextDueDate ?? DateTime.now().toIso8601String();
+      _initialized = true;
+    }
+
+    void handleSave() {
+      final amount = double.tryParse(_amountText);
+      if (_name.isEmpty || amount == null || accountsStore.accounts.isEmpty || categoriesStore.categories.isEmpty) return;
+      if (isNew) {
+        recurringStore.addRule(
+          name: _name,
+          categoryId: categoriesStore.categories[0].id,
+          accountId: accountsStore.accounts[0].id,
+          amount: amount,
+          frequency: _frequency,
+          nextDueDate: _nextDueDate,
+        );
+      } else if (rule != null) {
+        recurringStore.updateRule(rule.id, name: _name, amount: amount, frequency: _frequency, nextDueDate: _nextDueDate);
+      }
+      Navigator.of(context).pop();
+    }
+
+    void handleMarkPaid() {
+      if (rule != null) {
+        recurringStore.advanceNextDueDate(rule.id);
+      }
+    }
+
+    Future<void> handlePickDate() async {
+      final current = DateTime.tryParse(_nextDueDate) ?? DateTime.now();
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: current,
+        firstDate: DateTime(current.year - 5),
+        lastDate: DateTime(current.year + 5),
+      );
+      if (picked != null) {
+        setState(() => _nextDueDate = picked.toIso8601String());
+      }
+    }
+
+    void handleDelete() {
+      final target = rule;
+      showDialog(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: const Text('Delete recurring bill?', style: TextStyle(color: AppColors.text)),
+          content: const Text('This cannot be undone.', style: TextStyle(color: AppColors.textSecondary)),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () {
+                if (target != null) {
+                  recurringStore.removeRule(target.id);
+                }
+                Navigator.pop(dialogContext);
+                Navigator.of(context).pop();
+              },
+              child: const Text('Delete', style: TextStyle(color: AppColors.warning)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return AppDialog(
+      title: isNew ? 'Add Recurring Bill' : 'Edit Recurring Bill',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppFormField(label: 'Name', value: _name, onChanged: (v) => setState(() => _name = v), placeholder: 'e.g. Netflix'),
+          const SizedBox(height: AppSpacing.md),
+          AppFormField(label: 'Amount (J\$)', value: _amountText, onChanged: (v) => setState(() => _amountText = v), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+          const SizedBox(height: AppSpacing.md),
+          AppSegmentedControl<String>(options: _frequencies, value: _frequency, onChanged: (v) => setState(() => _frequency = v)),
+          const SizedBox(height: AppSpacing.md),
+          GestureDetector(
+            onTap: handlePickDate,
+            child: AbsorbPointer(
+              child: AppFormField(label: 'Next due date', value: _nextDueDate.substring(0, 10), onChanged: (_) {}),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          AppButton(label: 'Save', onPressed: (_name.isNotEmpty && _amountText.isNotEmpty) ? handleSave : null),
+          if (!isNew && rule != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            AppButton(label: 'Mark Paid', variant: AppButtonVariant.secondary, onPressed: handleMarkPaid),
+            const SizedBox(height: AppSpacing.md),
+            AppButton(label: 'Delete', variant: AppButtonVariant.secondary, onPressed: handleDelete),
+          ],
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Delete `lib/screens/recurring_edit_screen.dart`**
+
+- [ ] **Step 3: Wire `lib/screens/recurring_management_screen.dart` to open the dialog**
+
+Add the import (no state change needed — `showDialog` doesn't require a `StatefulWidget`):
+
+```dart
+import 'recurring_edit_dialog.dart';
+```
+
+Replace `onPressed: () => context.push('/recurring/new')` (both the `IconButton` and the `EmptyState`'s `onPressCta`) with:
+
+```dart
+onPressed: () => showDialog(context: context, builder: (_) => const RecurringEditDialog(id: 'new')),
+```
+
+Replace `onTap: () => context.push('/recurring/${rules[i].id}')` with:
+
+```dart
+onTap: () => showDialog(context: context, builder: (_) => RecurringEditDialog(id: rules[i].id)),
+```
+
+- [ ] **Step 4: Remove the recurring-edit route from `lib/app_router.dart`**
+
+Delete this line:
+
+```dart
+GoRoute(path: '/recurring/:id', builder: (context, state) => RecurringEditScreen(id: state.pathParameters['id']!)),
+```
+
+Delete the now-unused import:
+
+```dart
+import 'screens/recurring_edit_screen.dart';
+```
+
+- [ ] **Step 5: Verify it compiles and builds**
+
+Run: `flutter analyze lib` — expected `No issues found!`
+Run: `flutter build web` — expected `√ Built build/web`.
+
+- [ ] **Step 6: Verify in the browser**
+
+From Recurring, tap "+", confirm a popup opens, save a new bill, confirm it appears and the popup closed. Tap an existing bill, confirm it pre-fills including its due date, tap "Mark Paid", confirm the due date advances (dialog stays open — this is not a save/close action). Edit and Save, confirm the popup closes. Tap Delete, confirm the nested confirmation, confirm it removes the bill and closes both dialogs.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add lib/screens/recurring_edit_dialog.dart lib/screens/recurring_management_screen.dart lib/app_router.dart
+git rm lib/screens/recurring_edit_screen.dart
+git commit -m "feat: convert Add/Edit Recurring Bill to a popup dialog"
+```
+
+### Task 13: Debt popup dialog
+
+**Files:**
+- Create: `lib/screens/debt_edit_dialog.dart`
+- Delete: `lib/screens/debt_edit_screen.dart`
+- Modify: `lib/screens/debt_screen.dart`
+- Modify: `lib/app_router.dart`
+
+**Interfaces:**
+- Consumes: `AppDialog` (Task 2), `DebtsStore` (unchanged)
+- Produces: `DebtEditDialog({required String id})` — a `StatefulWidget` shown via `showDialog`
+
+**Note:** Task 8 already converted `debt_screen.dart`'s per-debt list into a `GridView.count`, but kept the `GestureDetector(onTap: () => context.push('/debts/${d.id}'))` navigation as a placeholder pending this task. This task replaces that with `showDialog`.
+
+- [ ] **Step 1: Create `lib/screens/debt_edit_dialog.dart`**
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../theme/app_theme.dart';
+import '../models/models.dart';
+import '../widgets/app_dialog.dart';
+import '../widgets/app_form_field.dart';
+import '../widgets/app_button.dart';
+import '../stores/debts_store.dart';
+
+class DebtEditDialog extends StatefulWidget {
+  final String id;
+  const DebtEditDialog({super.key, required this.id});
+
+  @override
+  State<DebtEditDialog> createState() => _DebtEditDialogState();
+}
+
+class _DebtEditDialogState extends State<DebtEditDialog> {
+  String _name = '';
+  String _balanceText = '';
+  String _rateText = '';
+  String _minPaymentText = '';
+  bool _initialized = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final debtsStore = context.watch<DebtsStore>();
+    final isNew = widget.id == 'new';
+
+    Debt? debt;
+    if (!isNew) {
+      for (final d in debtsStore.debts) {
+        if (d.id == widget.id) {
+          debt = d;
+          break;
+        }
+      }
+    }
+
+    if (!_initialized) {
+      _name = debt?.name ?? '';
+      _balanceText = debt != null ? debt.balance.toString() : '';
+      _rateText = debt != null ? debt.interestRate.toString() : '';
+      _minPaymentText = debt != null ? debt.minPayment.toString() : '';
+      _initialized = true;
+    }
+
+    void handleSave() {
+      final balance = double.tryParse(_balanceText);
+      final interestRate = double.tryParse(_rateText);
+      final minPayment = double.tryParse(_minPaymentText);
+      if (_name.isEmpty || balance == null || interestRate == null || minPayment == null) return;
+      if (isNew) {
+        debtsStore.addDebt(name: _name, balance: balance, interestRate: interestRate, minPayment: minPayment, dueDayOfMonth: 1);
+      } else if (debt != null) {
+        debtsStore.updateDebt(debt.id, name: _name, balance: balance, interestRate: interestRate, minPayment: minPayment);
+      }
+      Navigator.of(context).pop();
+    }
+
+    void handleDelete() {
+      final target = debt;
+      if (target == null) return;
+      showDialog(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: const Text('Delete debt?', style: TextStyle(color: AppColors.text)),
+          content: const Text('This cannot be undone.', style: TextStyle(color: AppColors.textSecondary)),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () {
+                debtsStore.removeDebt(target.id);
+                Navigator.pop(dialogContext);
+                Navigator.of(context).pop();
+              },
+              child: const Text('Delete', style: TextStyle(color: AppColors.warning)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final isValid = _name.isNotEmpty && _balanceText.isNotEmpty && _rateText.isNotEmpty && _minPaymentText.isNotEmpty;
+
+    return AppDialog(
+      title: isNew ? 'Add Debt' : 'Edit Debt',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppFormField(label: 'Debt name', value: _name, onChanged: (v) => setState(() => _name = v), placeholder: 'e.g. Credit Card'),
+          const SizedBox(height: AppSpacing.md),
+          AppFormField(label: 'Balance (J\$)', value: _balanceText, onChanged: (v) => setState(() => _balanceText = v), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+          const SizedBox(height: AppSpacing.md),
+          AppFormField(label: 'Interest rate (APR %)', value: _rateText, onChanged: (v) => setState(() => _rateText = v), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+          const SizedBox(height: AppSpacing.md),
+          AppFormField(label: 'Minimum payment (J\$)', value: _minPaymentText, onChanged: (v) => setState(() => _minPaymentText = v), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+          const SizedBox(height: AppSpacing.xl),
+          AppButton(label: 'Save', onPressed: isValid ? handleSave : null),
+          if (!isNew && debt != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            AppButton(label: 'Delete', variant: AppButtonVariant.secondary, onPressed: handleDelete),
+          ],
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Delete `lib/screens/debt_edit_screen.dart`**
+
+- [ ] **Step 3: Wire `lib/screens/debt_screen.dart` to open the dialog**
+
+Add the import:
+
+```dart
+import 'debt_edit_dialog.dart';
+```
+
+Replace both `onPressed: () => context.push('/debts/new')` call sites (the `IconButton` and the `EmptyState`'s `onPressCta`) with:
+
+```dart
+onPressed: () => showDialog(context: context, builder: (_) => const DebtEditDialog(id: 'new')),
+```
+
+Replace the per-debt `GestureDetector(onTap: () => context.push('/debts/${d.id}'), ...)` with:
+
+```dart
+GestureDetector(
+  onTap: () => showDialog(context: context, builder: (_) => DebtEditDialog(id: d.id)),
+  ...
+)
+```
+
+(keep the rest of that `GestureDetector`'s `child:` unchanged.)
+
+- [ ] **Step 4: Remove the debt-edit route from `lib/app_router.dart`**
+
+Delete this line:
+
+```dart
+GoRoute(path: '/debts/:id', builder: (context, state) => DebtEditScreen(id: state.pathParameters['id']!)),
+```
+
+Delete the now-unused import:
+
+```dart
+import 'screens/debt_edit_screen.dart';
+```
+
+(the `/debts` list-screen route stays unchanged.)
+
+- [ ] **Step 5: Verify it compiles and builds**
+
+Run: `flutter analyze lib` — expected `No issues found!`
+Run: `flutter build web` — expected `√ Built build/web`.
+
+- [ ] **Step 6: Verify in the browser**
+
+From Debt, tap "+", confirm a popup opens, save a new debt, confirm it appears in the grid and the popup closed. Tap an existing debt card, confirm it pre-fills, edit and Save, confirm the popup closes and the change is reflected. Tap Delete, confirm the nested confirmation, confirm it removes the debt and closes both dialogs.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add lib/screens/debt_edit_dialog.dart lib/screens/debt_screen.dart lib/app_router.dart
+git rm lib/screens/debt_edit_screen.dart
+git commit -m "feat: convert Add/Edit Debt to a popup dialog"
+```
+
+### Task 14: Goal popup dialogs (edit + contribution split)
+
+**Files:**
+- Create: `lib/screens/goal_edit_dialog.dart`
+- Create: `lib/screens/goal_contribution_dialog.dart`
+- Delete: `lib/screens/goal_detail_screen.dart`
+- Modify: `lib/screens/goals_list_screen.dart`
+- Modify: `lib/app_router.dart`
+
+**Interfaces:**
+- Consumes: `AppDialog` (Task 2), `GoalsStore`/`AccountsStore`/`CategoriesStore`/`TransactionsStore`/`TransactionActions` (unchanged)
+- Produces: `GoalEditDialog({required String id})` (create/edit/delete, no contribution UI) and `GoalContributionDialog({required String goalId})` (progress + contribution form only) — both `StatefulWidget`s shown via `showDialog`
+
+Per the design spec (§3), tapping a goal card opens the contribution dialog; a pencil icon on the card opens the edit dialog. `GoalContributionDialog` assumes the goal already exists (it is never shown for `isNew`), so it takes a non-nullable `goalId` and returns early with a "Goal not found" message if the goal has been deleted out from under it.
+
+- [ ] **Step 1: Create `lib/screens/goal_edit_dialog.dart`**
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../theme/app_theme.dart';
+import '../models/models.dart';
+import '../widgets/app_dialog.dart';
+import '../widgets/app_form_field.dart';
+import '../widgets/app_button.dart';
+import '../stores/goals_store.dart';
+
+class GoalEditDialog extends StatefulWidget {
+  final String id;
+  const GoalEditDialog({super.key, required this.id});
+
+  @override
+  State<GoalEditDialog> createState() => _GoalEditDialogState();
+}
+
+class _GoalEditDialogState extends State<GoalEditDialog> {
+  String _name = '';
+  String _targetText = '';
+  bool _initialized = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final goalsStore = context.watch<GoalsStore>();
+    final isNew = widget.id == 'new';
+
+    Goal? goal;
+    if (!isNew) {
+      for (final g in goalsStore.goals) {
+        if (g.id == widget.id) {
+          goal = g;
+          break;
+        }
+      }
+    }
+
+    if (!_initialized) {
+      _name = goal?.name ?? '';
+      _targetText = goal != null ? goal.targetAmount.toString() : '';
+      _initialized = true;
+    }
+
+    void handleSave() {
+      final target = double.tryParse(_targetText);
+      if (_name.isEmpty || target == null || target <= 0) return;
+      if (isNew) {
+        goalsStore.addGoal(name: _name, icon: 'target', targetAmount: target);
+      } else if (goal != null) {
+        goalsStore.updateGoal(goal.id, name: _name, targetAmount: target);
+      }
+      Navigator.of(context).pop();
+    }
+
+    void handleDelete() {
+      final target = goal;
+      if (target == null) return;
+      showDialog(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: const Text('Delete goal?', style: TextStyle(color: AppColors.text)),
+          content: const Text('This cannot be undone.', style: TextStyle(color: AppColors.textSecondary)),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () {
+                goalsStore.removeGoal(target.id);
+                Navigator.pop(dialogContext);
+                Navigator.of(context).pop();
+              },
+              child: const Text('Delete', style: TextStyle(color: AppColors.warning)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final isNameValid = _name.isNotEmpty && (double.tryParse(_targetText) ?? 0) > 0;
+
+    return AppDialog(
+      title: isNew ? 'Add Goal' : 'Edit Goal',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppFormField(label: 'Goal name', value: _name, onChanged: (v) => setState(() => _name = v), placeholder: 'e.g. Emergency Fund'),
+          const SizedBox(height: AppSpacing.md),
+          AppFormField(
+            label: 'Target amount (J\$)',
+            value: _targetText,
+            onChanged: (v) => setState(() => _targetText = v),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            placeholder: '0.00',
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          AppButton(label: isNew ? 'Create Goal' : 'Save', onPressed: isNameValid ? handleSave : null),
+          if (!isNew && goal != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            AppButton(label: 'Delete', variant: AppButtonVariant.secondary, onPressed: handleDelete),
+          ],
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 2: Create `lib/screens/goal_contribution_dialog.dart`**
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../theme/app_theme.dart';
+import '../models/models.dart';
+import '../widgets/app_dialog.dart';
+import '../widgets/app_form_field.dart';
+import '../widgets/app_button.dart';
+import '../widgets/app_progress_bar.dart';
+import '../utils/money.dart';
+import '../stores/goals_store.dart';
+import '../stores/accounts_store.dart';
+import '../stores/categories_store.dart';
+import '../stores/transactions_store.dart';
+import '../logic/transaction_actions.dart';
+
+class GoalContributionDialog extends StatefulWidget {
+  final String goalId;
+  const GoalContributionDialog({super.key, required this.goalId});
+
+  @override
+  State<GoalContributionDialog> createState() => _GoalContributionDialogState();
+}
+
+class _GoalContributionDialogState extends State<GoalContributionDialog> {
+  String _contribution = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final goalsStore = context.watch<GoalsStore>();
+
+    Goal? goal;
+    for (final g in goalsStore.goals) {
+      if (g.id == widget.goalId) {
+        goal = g;
+        break;
+      }
+    }
+
+    if (goal == null) {
+      return AppDialog(
+        title: 'Goal not found',
+        child: const SizedBox(height: 40, child: Center(child: Text('This goal was deleted.', style: TextStyle(color: AppColors.textSecondary)))),
+      );
+    }
+    final resolvedGoal = goal;
+
+    final accounts = context.watch<AccountsStore>().accounts;
+    final categories = context.watch<CategoriesStore>().categories;
+    Category? transferCategory;
+    for (final c in categories) {
+      if (c.name == 'Transfer') {
+        transferCategory = c;
+        break;
+      }
+    }
+
+    final actions = TransactionActions(
+      accountsStore: context.read<AccountsStore>(),
+      transactionsStore: context.read<TransactionsStore>(),
+      goalsStore: goalsStore,
+    );
+
+    void handleAddContribution() {
+      final amount = double.tryParse(_contribution);
+      if (amount == null || amount <= 0 || accounts.isEmpty || transferCategory == null) return;
+      actions.createTransaction(
+        accountId: accounts[0].id,
+        categoryId: transferCategory.id,
+        amount: -amount,
+        note: 'Contribution to ${resolvedGoal.name}',
+        date: DateTime.now().toIso8601String(),
+        type: 'goal_contribution',
+        goalId: resolvedGoal.id,
+      );
+      setState(() => _contribution = '');
+    }
+
+    return AppDialog(
+      title: resolvedGoal.name,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppProgressBar(progress: resolvedGoal.targetAmount == 0 ? 0 : resolvedGoal.currentAmount / resolvedGoal.targetAmount),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            '${formatMoney(resolvedGoal.currentAmount)} of ${formatMoney(resolvedGoal.targetAmount)}',
+            style: const TextStyle(color: AppColors.textMuted, fontSize: 13, fontFeatures: [FontFeature.tabularFigures()]),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          AppFormField(
+            label: 'Add contribution (J\$)',
+            value: _contribution,
+            onChanged: (v) => setState(() => _contribution = v),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            placeholder: '0.00',
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppButton(label: 'Add Contribution', onPressed: _contribution.isNotEmpty ? handleAddContribution : null),
+        ],
+      ),
+    );
+  }
+}
+```
+
+- [ ] **Step 3: Delete `lib/screens/goal_detail_screen.dart`**
+
+- [ ] **Step 4: Wire `lib/screens/goals_list_screen.dart` to open both dialogs**
+
+Add the imports:
+
+```dart
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'goal_edit_dialog.dart';
+import 'goal_contribution_dialog.dart';
+```
+
+Replace both `onPressed: () => context.push('/goal/new')` call sites (the `IconButton` and the `EmptyState`'s `onPressCta`) with:
+
+```dart
+onPressed: () => showDialog(context: context, builder: (_) => const GoalEditDialog(id: 'new')),
+```
+
+Replace the per-goal card's `onTap: () => context.push('/goal/${g.id}')` with:
+
+```dart
+onTap: () => showDialog(context: context, builder: (_) => GoalContributionDialog(goalId: g.id)),
+```
+
+Add a pencil-icon edit affordance to each `_GoalCard` (built in Task 7): add a `Row` with `mainAxisAlignment: MainAxisAlignment.spaceBetween` around the existing name `Text`, adding an `IconButton` on the trailing side:
+
+```dart
+Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    Expanded(child: Text(g.name, style: const TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w700))),
+    IconButton(
+      icon: const Icon(LucideIcons.pencil, size: 16, color: AppColors.textMuted),
+      onPressed: () => showDialog(context: context, builder: (_) => GoalEditDialog(id: g.id)),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(),
+    ),
+  ],
+),
+```
+
+(replacing the bare `Text(g.name, ...)` line that Task 7's `_GoalCard` currently renders).
+
+- [ ] **Step 5: Remove the goal-detail route from `lib/app_router.dart`**
+
+Delete this line:
+
+```dart
+GoRoute(path: '/goal/:id', builder: (context, state) => GoalDetailScreen(id: state.pathParameters['id']!)),
+```
+
+Delete the now-unused import:
+
+```dart
+import 'screens/goal_detail_screen.dart';
+```
+
+- [ ] **Step 6: Verify it compiles and builds**
+
+Run: `flutter analyze lib` — expected `No issues found!`
+Run: `flutter build web` — expected `√ Built build/web`.
+
+- [ ] **Step 7: Verify in the browser**
+
+From Goals, tap "+", confirm the edit popup opens, create a goal, confirm it appears and the popup closed. Tap a goal card (not the pencil), confirm the contribution popup opens showing progress, add a contribution, confirm the progress bar updates and the popup stays open (contribution isn't a close-on-save action per the original screen's behavior — confirm this matches, then close it manually). Tap the pencil icon, confirm the edit popup opens pre-filled, edit and Save, confirm it closes and the change is reflected. Tap Delete, confirm the nested confirmation, confirm it removes the goal and closes both dialogs.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add lib/screens/goal_edit_dialog.dart lib/screens/goal_contribution_dialog.dart lib/screens/goals_list_screen.dart lib/app_router.dart
+git rm lib/screens/goal_detail_screen.dart
+git commit -m "feat: split Goal detail into edit and contribution popup dialogs"
+```
+
+### Task 15: Comma-formatting audit
+
+**Files:**
+- Modify: any screen found to display a raw money value without `formatMoney()` (expected: none — this task is a verification pass)
+
+**Interfaces:**
+- Consumes: `formatMoney()` (`lib/utils/money.dart`, unchanged)
+
+- [ ] **Step 1: Grep every screen for money-shaped `Text` widgets**
+
+Run:
+
+```bash
+grep -rn "amount\|balance\|Amount\|Balance\|totalOwed\|totalInterest\|currentAmount\|targetAmount" lib/screens lib/widgets --include="*.dart" -l
+```
+
+For each file returned, open it and check every `Text(...)` (not `AppFormField`, which is an editable field showing a raw parseable string while typing — those are correctly out of scope per the spec) that renders a `double` money value. Confirm it's wrapped in `formatMoney(...)`, not `'${value}'`/`value.toString()`/bare string interpolation of a `double`.
+
+Based on the files already read and written in this plan, the known correct sites are: `home_screen.dart`'s hero/stat amounts, `transactions_screen.dart`'s `ListRow.amount`/`AppCard` money text, `debt_screen.dart`'s TOTAL OWED/interest/per-debt amounts, `goals_list_screen.dart`'s progress text, `goal_edit_dialog.dart`/`goal_contribution_dialog.dart`'s progress text, `accounts_management_screen.dart`'s `ListRow.amount`, `recurring_management_screen.dart`'s `ListRow.amount`, and `insights_screen.dart`'s chart/summary figures — all of these already call `formatMoney()` per the original 27-task plan and subsequent CRUD-audit fix. `ListRow`'s own `amount` parameter (a `double?`) formats internally via `formatMoney()` in `lib/widgets/list_row.dart` — confirm this by reading that file's `amount`-rendering `Text`.
+
+- [ ] **Step 2: Fix any gap found**
+
+If a raw `.toString()`/interpolation is found, replace it with `formatMoney(value)` (import `../utils/money.dart` if not already imported) and re-run `flutter analyze lib`.
+
+- [ ] **Step 3: Commit (only if a fix was needed)**
+
+```bash
+git add -A
+git commit -m "fix: ensure all money displays use comma formatting"
+```
+
+If no gap was found, skip this commit — record in the plan's final integration notes (Task 16) that the audit passed with zero changes.
+
+### Task 16: Final integration
+
+**Files:** none created; this task only runs verification across everything built in Tasks 1–15.
+
+- [ ] **Step 1: Run the full automated test suite**
+
+Run: `flutter test`
+Expected: all tests pass, including the new `test/theme/breakpoints_test.dart` from Task 1 and every pre-existing test untouched by this plan.
+
+- [ ] **Step 2: Run static analysis**
+
+Run: `flutter analyze lib test`
+Expected: `No issues found!`
+
+- [ ] **Step 3: Build for web**
+
+Run: `flutter build web --release`
+Expected: `√ Built build/web`.
+
+- [ ] **Step 4: Manual click-through at Compact width (390px)**
+
+Using the browser preview resized to 390px wide, confirm: bottom tab bar still renders (not the sidebar), every screen looks unchanged from before this plan, and every popup (Transaction, Account, Category, Recurring, Debt, Goal edit, Goal contribution) opens as a near-full-width sheet, saves, and auto-closes; delete confirmations work on each.
+
+- [ ] **Step 5: Manual click-through at Expanded width (1280px)**
+
+Resize to 1280px wide. Confirm: a persistent left sidebar replaces the bottom tab bar and navigating between its 5 destinations works; Home renders as a two-column layout (hero+stats+actions on the left, recent transactions on the right); Goals and Debt render as multi-column grids; every other screen (Transactions, Insights, Accounts, Categories, Recurring, Notifications, More) renders inside the centered 1200px-max content area rather than stretching edge-to-edge; every popup opens as a fixed ~480px-wide dialog centered on screen (not full-width), saves, and auto-closes; delete confirmations work on each.
+
+- [ ] **Step 6: Confirm no dead code remains**
+
+Run:
+
+```bash
+grep -rn "PhoneFrame\|transaction_edit_screen\|account_edit_screen\|category_add_screen\|recurring_edit_screen\|debt_edit_screen\|goal_detail_screen" lib
+```
+
+Expected: no matches (all six old screens plus `PhoneFrame` were deleted across Tasks 4 and 9–14; nothing should still reference them).
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add -A
+git commit -m "chore: final integration pass for UI/UX overhaul"
+```
