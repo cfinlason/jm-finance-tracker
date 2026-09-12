@@ -601,3 +601,438 @@ At a Compact width, confirm all 7 screens are pixel-identical to before this tas
 git add lib/screens/transactions_screen.dart lib/screens/insights_screen.dart lib/screens/accounts_management_screen.dart lib/screens/categories_screen.dart lib/screens/recurring_management_screen.dart lib/screens/notifications_screen.dart lib/screens/more_screen.dart
 git commit -m "feat: wrap single-column screens in ContentBounds for responsive width"
 ```
+
+---
+
+### Task 6: Home screen — two-column dashboard on Expanded
+
+**Files:**
+- Modify: `lib/screens/home_screen.dart`
+
+**Interfaces:**
+- Consumes: `isExpanded` from Task 1, `ContentBounds` from Task 2.
+- Produces: on Compact, identical output to today (hero → stats → quick actions → recent transactions, stacked). On Expanded, hero+stats+quick-actions form a left column and recent transactions form a right column, side by side.
+
+- [ ] **Step 1: Split the build method into a shared data-prep section and two layout branches**
+
+Overwrite `lib/screens/home_screen.dart`:
+```dart
+import 'dart:ui';
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../theme/app_theme.dart';
+import '../theme/breakpoints.dart';
+import '../models/models.dart';
+import '../widgets/app_screen.dart';
+import '../widgets/content_bounds.dart';
+import '../widgets/app_card.dart';
+import '../widgets/stat_figure.dart';
+import '../widgets/list_row.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/icon_chip.dart';
+import '../widgets/category_icon.dart';
+import '../utils/money.dart';
+import '../logic/safe_to_spend.dart';
+import '../stores/accounts_store.dart';
+import '../stores/recurring_store.dart';
+import '../stores/transactions_store.dart';
+import '../stores/categories_store.dart';
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final accounts = context.watch<AccountsStore>().accounts;
+    final recurringRules = context.watch<RecurringStore>().rules;
+    final transactions = context.watch<TransactionsStore>().transactions;
+    final categories = context.watch<CategoriesStore>().categories;
+
+    final safeToSpend = calculateSafeToSpend(accounts, recurringRules);
+    final recentTop5 = ([...transactions]..sort((a, b) => b.date.compareTo(a.date))).take(5).toList();
+    final monthIncome = transactions.where((t) => t.type == 'income').fold<double>(0, (s, t) => s + t.amount);
+    final monthSpending = transactions.where((t) => t.type == 'expense').fold<double>(0, (s, t) => s + t.amount.abs());
+    final upcoming = recurringRules.fold<double>(0, (s, r) => s + r.amount);
+
+    Category? categoryFor(String id) {
+      for (final c in categories) {
+        if (c.id == id) return c;
+      }
+      return null;
+    }
+
+    final heroSection = _HeroSection(safeToSpend: safeToSpend, monthIncome: monthIncome, monthSpending: monthSpending, upcoming: upcoming);
+    final recentSection = _RecentTransactionsSection(recentTop5: recentTop5, categoryFor: categoryFor);
+
+    return AppScreen(
+      child: ContentBounds(
+        child: isExpanded(context)
+            ? IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: heroSection),
+                    const SizedBox(width: AppSpacing.xl),
+                    Expanded(child: recentSection),
+                  ],
+                ),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [heroSection, recentSection],
+              ),
+      ),
+    );
+  }
+}
+
+class _HeroSection extends StatelessWidget {
+  final double safeToSpend;
+  final double monthIncome;
+  final double monthSpending;
+  final double upcoming;
+
+  const _HeroSection({required this.safeToSpend, required this.monthIncome, required this.monthSpending, required this.upcoming});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AppCard(
+          emphasis: true,
+          margin: const EdgeInsets.only(bottom: AppSpacing.xl),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('SAFE TO SPEND', style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.1)),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                formatMoney(safeToSpend),
+                style: const TextStyle(color: AppColors.text, fontSize: 60, fontWeight: FontWeight.w800, fontFeatures: [FontFeature.tabularFigures()]),
+              ),
+            ],
+          ),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            StatFigure(label: 'Income', amount: monthIncome, tone: StatTone.positive),
+            StatFigure(label: 'Spending', amount: monthSpending),
+            StatFigure(label: 'Upcoming', amount: upcoming),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        Container(
+          decoration: BoxDecoration(border: Border.all(color: AppColors.border), borderRadius: BorderRadius.circular(14)),
+          child: Row(
+            children: [
+              Expanded(child: _QuickAction(icon: LucideIcons.plus, label: 'Add Transaction', onTap: () => _openAddTransaction(context))),
+              Expanded(child: _QuickAction(icon: LucideIcons.creditCard, label: 'View Debt', onTap: () => context.push('/debts'))),
+              Expanded(child: _QuickAction(icon: LucideIcons.trendingUp, label: 'Cash Flow', onTap: () => context.push('/cash-flow'))),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RecentTransactionsSection extends StatelessWidget {
+  final List<Transaction> recentTop5;
+  final Category? Function(String) categoryFor;
+
+  const _RecentTransactionsSection({required this.recentTop5, required this.categoryFor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Recent Transactions', style: TextStyle(color: AppColors.text, fontSize: 20, fontWeight: FontWeight.w700)),
+        const SizedBox(height: AppSpacing.md),
+        if (recentTop5.isEmpty)
+          EmptyState(
+            icon: const IconChip(child: Icon(LucideIcons.plus, size: 16, color: AppColors.textMuted)),
+            message: 'No transactions yet.',
+            ctaLabel: 'Add Transaction',
+            onPressCta: () => _openAddTransaction(context),
+          )
+        else
+          AppCard(
+            child: Column(
+              children: [
+                for (var i = 0; i < recentTop5.length; i++)
+                  ListRow(
+                    icon: CategoryIcon(name: categoryFor(recentTop5[i].categoryId)?.icon ?? 'more-horizontal'),
+                    title: categoryFor(recentTop5[i].categoryId)?.name ?? 'Uncategorized',
+                    caption: recentTop5[i].note.isNotEmpty ? recentTop5[i].note : recentTop5[i].date.substring(0, 10),
+                    amount: recentTop5[i].amount,
+                    isLast: i == recentTop5.length - 1,
+                    onTap: () => _openEditTransaction(context, recentTop5[i].id),
+                  ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _QuickAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _QuickAction({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+        child: Column(
+          children: [
+            Icon(icon, size: 18, color: AppColors.text),
+            const SizedBox(height: 6),
+            Text(label, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.text, fontSize: 11, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+```
+Note: `_openAddTransaction` and `_openEditTransaction` are helper functions defined in Task 9 (they open the new `TransactionEditDialog` popup) — this task references them but does not define them yet; the file will not compile standalone until Task 9 lands. This is intentional and matches the plan's dependency order (responsive layout first, popups second) — if executing tasks strictly in order, Task 9 immediately follows and resolves this.
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add lib/screens/home_screen.dart
+git commit -m "feat: split Home screen into a two-column dashboard on Expanded"
+```
+
+---
+
+### Task 7: Goals list screen — responsive grid
+
+**Files:**
+- Modify: `lib/screens/goals_list_screen.dart`
+
+**Interfaces:**
+- Consumes: `isExpanded` from Task 1, `ContentBounds` from Task 2.
+- Produces: on Compact, one goal card per row (unchanged). On Expanded, goal cards lay out in a grid — 2 columns between 840–1200px, 3 columns above 1200px.
+
+- [ ] **Step 1: Rewrite the goals list into a responsive grid**
+
+Overwrite `lib/screens/goals_list_screen.dart`:
+```dart
+import 'dart:ui';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../theme/app_theme.dart';
+import '../theme/breakpoints.dart';
+import '../widgets/app_screen.dart';
+import '../widgets/content_bounds.dart';
+import '../widgets/app_card.dart';
+import '../widgets/app_progress_bar.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/icon_chip.dart';
+import '../utils/money.dart';
+import '../stores/goals_store.dart';
+import '../models/models.dart';
+
+class GoalsListScreen extends StatelessWidget {
+  const GoalsListScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final goals = context.watch<GoalsStore>().goals;
+    final width = MediaQuery.sizeOf(context).width;
+    final columns = !isExpanded(context) ? 1 : (width >= 1200 ? 3 : 2);
+
+    return AppScreen(
+      child: ContentBounds(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Goals', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+                IconButton(icon: const Icon(LucideIcons.plus, color: AppColors.accent), onPressed: () => _openCreateGoal(context)),
+              ],
+            ),
+            if (goals.isEmpty)
+              EmptyState(
+                icon: const IconChip(child: Icon(LucideIcons.target, size: 16, color: AppColors.textMuted)),
+                message: 'No goals yet.',
+                ctaLabel: 'Add Goal',
+                onPressCta: () => _openCreateGoal(context),
+              )
+            else
+              GridView.count(
+                crossAxisCount: columns,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: AppSpacing.md,
+                crossAxisSpacing: AppSpacing.md,
+                childAspectRatio: columns == 1 ? 3.2 : 2.2,
+                children: [for (final g in goals) _GoalCard(goal: g)],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GoalCard extends StatelessWidget {
+  final Goal goal;
+  const _GoalCard({required this.goal});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _openContribution(context, goal.id),
+      child: AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    goal.name,
+                    style: const TextStyle(color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w700),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(LucideIcons.pencil, size: 16, color: AppColors.textMuted),
+                  onPressed: () => _openEditGoal(context, goal.id),
+                ),
+              ],
+            ),
+            AppProgressBar(progress: goal.targetAmount == 0 ? 0 : goal.currentAmount / goal.targetAmount),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              '${formatMoney(goal.currentAmount)} of ${formatMoney(goal.targetAmount)}',
+              style: const TextStyle(color: AppColors.textMuted, fontSize: 13, fontFeatures: [FontFeature.tabularFigures()]),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+```
+Note: `_openCreateGoal`, `_openEditGoal`, and `_openContribution` are defined in Task 14 (they open `GoalEditDialog`/`GoalContributionDialog`) — this file will not compile standalone until Task 14 lands, matching the same intentional ordering as Task 6. If the icon `LucideIcons.pencil` doesn't exist in the installed package version, substitute the closest equivalent (e.g. `LucideIcons.penLine` or `LucideIcons.edit3`) and note the substitution.
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add lib/screens/goals_list_screen.dart
+git commit -m "feat: lay out Goals as a responsive grid on Expanded"
+```
+
+---
+
+### Task 8: Debt screen — responsive grid for debt rows
+
+**Files:**
+- Modify: `lib/screens/debt_screen.dart`
+
+**Interfaces:**
+- Consumes: `isExpanded` from Task 1, `ContentBounds` from Task 2.
+- Produces: the total-owed card and payoff-projection card stay full-width at every breakpoint (they're already dashboard-shaped, a grid wouldn't suit them); only the per-debt list below them becomes a responsive grid (2 columns Expanded, 1 column Compact) matching the Goals screen's treatment.
+
+- [ ] **Step 1: Wrap the screen in `ContentBounds` and grid the debt rows**
+
+In `lib/screens/debt_screen.dart`, add the imports:
+```dart
+import '../theme/breakpoints.dart';
+import '../widgets/content_bounds.dart';
+```
+Change the outer return from:
+```dart
+    return AppScreen(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+```
+to:
+```dart
+    return AppScreen(
+      child: ContentBounds(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+```
+(re-indenting the existing body one level deeper, and adding one closing `)` before the final `);`).
+
+Then replace the per-debt list — change:
+```dart
+            for (final d in debts)
+              GestureDetector(
+                onTap: () => context.push('/debts/${d.id}'),
+                child: AppCard(
+                  margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(d.name, style: const TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${formatMoney(d.balance)} · ${d.interestRate}% APR · Min ${formatMoney(d.minPayment)}',
+                        style: const TextStyle(color: AppColors.textMuted, fontSize: 12, fontFeatures: [FontFeature.tabularFigures()]),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+```
+to:
+```dart
+            GridView.count(
+              crossAxisCount: isExpanded(context) ? 2 : 1,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: AppSpacing.sm,
+              crossAxisSpacing: AppSpacing.md,
+              childAspectRatio: isExpanded(context) ? 3.4 : 4.2,
+              children: [
+                for (final d in debts)
+                  GestureDetector(
+                    onTap: () => _openEditDebt(context, d.id),
+                    child: AppCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(d.name, style: const TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${formatMoney(d.balance)} · ${d.interestRate}% APR · Min ${formatMoney(d.minPayment)}',
+                            style: const TextStyle(color: AppColors.textMuted, fontSize: 12, fontFeatures: [FontFeature.tabularFigures()]),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+```
+Also change the header "+" button's `onPressed: () => context.push('/debts/new')` to `onPressed: () => _openCreateDebt(context)`, and the empty state's `onPressCta: () => context.push('/debts/new')` to `onPressCta: () => _openCreateDebt(context)`.
+
+Note: `_openCreateDebt` and `_openEditDebt` are defined in Task 13 (they open `DebtEditDialog`) — this file will not compile standalone until Task 13 lands, matching the same intentional ordering as Tasks 6–7.
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add lib/screens/debt_screen.dart
+git commit -m "feat: lay out Debt list as a responsive grid on Expanded"
+```
