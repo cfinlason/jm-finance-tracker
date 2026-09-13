@@ -107,9 +107,15 @@ class MonthCalendar extends StatelessWidget {
             final isSelected = selectedDate != null && _isSameDay(date, selectedDate!);
             final dayOccurrences = occurrencesByDay[dayNumber] ?? const [];
 
-            return Center(
-              child: GestureDetector(
-                onTap: () => onSelectDate(date),
+            // The GestureDetector fills the whole grid cell (via behavior:
+            // opaque, since the circle Container beneath it doesn't paint
+            // the corners) rather than just the small circle — a real
+            // device's tap rarely lands pixel-perfectly on a 36-44px circle,
+            // and this was previously a dead zone around it.
+            return GestureDetector(
+              onTap: () => onSelectDate(date),
+              behavior: HitTestBehavior.opaque,
+              child: Center(
                 child: Container(
                   width: cellSize,
                   height: cellSize,
