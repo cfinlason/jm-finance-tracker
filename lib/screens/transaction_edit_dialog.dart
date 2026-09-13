@@ -10,6 +10,7 @@ import '../stores/accounts_store.dart';
 import '../stores/categories_store.dart';
 import '../stores/transactions_store.dart';
 import '../stores/goals_store.dart';
+import '../stores/transaction_preview_store.dart';
 import '../logic/transaction_actions.dart';
 
 class TransactionEditDialog extends StatefulWidget {
@@ -28,6 +29,40 @@ class _TransactionEditDialogState extends State<TransactionEditDialog> {
   late String _note;
   String _error = '';
   bool _initialized = false;
+  TransactionPreviewStore? _previewStoreRef;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _previewStoreRef = context.read<TransactionPreviewStore>();
+  }
+
+  @override
+  void dispose() {
+    _previewStoreRef?.clear();
+    super.dispose();
+  }
+
+  // Live balance preview (new transactions only — see TransactionPreviewStore's
+  // doc comment for why edits are excluded). Called explicitly from each
+  // relevant onChanged handler rather than from build(): updating the store
+  // from build() meant a rebuild triggered by the very save this dialog just
+  // performed (this widget still watches AccountsStore while it animates
+  // closed) would re-schedule a preview using the now-stale pre-save amount,
+  // permanently double-subtracting it from the balance the save had already
+  // applied. Driving it from user interaction instead means it's never
+  // touched again once the user stops interacting, so Save/Cancel/close
+  // leave nothing behind for dispose()'s clear() to race against.
+  void _syncPreview() {
+    if (widget.id != 'new') return;
+    final amount = double.tryParse(_amountText);
+    final store = context.read<TransactionPreviewStore>();
+    if (amount != null && amount > 0 && _accountId.isNotEmpty) {
+      store.setPreview(accountId: _accountId, delta: _type == 'income' ? amount : -amount);
+    } else {
+      store.clear();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,6 +119,7 @@ class _TransactionEditDialogState extends State<TransactionEditDialog> {
       } else if (existing != null) {
         actions.editTransaction(existing.id, accountId: _accountId, categoryId: _categoryId, amount: signedAmount, note: _note, type: _type);
       }
+      _previewStoreRef?.clear();
       Navigator.of(context).pop();
     }
 
@@ -101,6 +137,7 @@ class _TransactionEditDialogState extends State<TransactionEditDialog> {
             TextButton(
               onPressed: () {
                 actions.deleteTransaction(target.id);
+                _previewStoreRef?.clear();
                 Navigator.pop(dialogContext);
                 Navigator.of(context).pop();
               },
@@ -120,13 +157,19 @@ class _TransactionEditDialogState extends State<TransactionEditDialog> {
           AppSegmentedControl<String>(
             options: const [SegmentOption(label: 'Expense', value: 'expense'), SegmentOption(label: 'Income', value: 'income')],
             value: _type,
-            onChanged: (v) => setState(() => _type = v),
+            onChanged: (v) => setState(() {
+              _type = v;
+              _syncPreview();
+            }),
           ),
           const SizedBox(height: AppSpacing.lg),
           AppFormField(
             label: 'Amount (J\$)',
             value: _amountText,
-            onChanged: (v) => setState(() => _amountText = v),
+            onChanged: (v) => setState(() {
+              _amountText = v;
+              _syncPreview();
+            }),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             placeholder: '0.00',
             error: _error.isNotEmpty ? _error : null,
@@ -137,7 +180,17 @@ class _TransactionEditDialogState extends State<TransactionEditDialog> {
           Wrap(
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.sm,
-            children: [for (final a in accounts) _Chip(label: a.name, active: _accountId == a.id, onTap: () => setState(() => _accountId = a.id))],
+            children: [
+              for (final a in accounts)
+                _Chip(
+                  label: a.name,
+                  active: _accountId == a.id,
+                  onTap: () => setState(() {
+                    _accountId = a.id;
+                    _syncPreview();
+                  }),
+                ),
+            ],
           ),
           const SizedBox(height: AppSpacing.md),
           const Text('CATEGORY', style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.1)),

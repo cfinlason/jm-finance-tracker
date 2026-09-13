@@ -19,6 +19,7 @@ import '../stores/accounts_store.dart';
 import '../stores/recurring_store.dart';
 import '../stores/transactions_store.dart';
 import '../stores/categories_store.dart';
+import '../stores/transaction_preview_store.dart';
 import 'transaction_edit_dialog.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -50,19 +51,33 @@ class HomeScreen extends StatelessWidget {
     return AppScreen(
       child: ContentBounds(
         child: isExpanded(context)
-            ? IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: heroSection),
-                    const SizedBox(width: AppSpacing.xl),
-                    Expanded(child: recentSection),
-                  ],
-                ),
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: heroSection),
+                        const SizedBox(width: AppSpacing.xl),
+                        SizedBox(width: 260, child: _AccountsSidebar(accounts: accounts, horizontal: false)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  recentSection,
+                ],
               )
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [heroSection, recentSection],
+                children: [
+                  heroSection,
+                  if (accounts.isNotEmpty) ...[
+                    _AccountsSidebar(accounts: accounts, horizontal: true),
+                    const SizedBox(height: AppSpacing.xl),
+                  ],
+                  recentSection,
+                ],
               ),
       ),
     );
@@ -159,6 +174,96 @@ class _RecentTransactionsSection extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Always-visible list of accounts and their balances. On Expanded it renders
+/// as a narrow vertical column beside the hero section ("on the side"); on
+/// Compact it renders as a horizontally-scrollable strip so it doesn't push
+/// the rest of the dashboard down. While the Add Transaction dialog has an
+/// account and a valid amount selected, that account's card shows a live
+/// preview of what its balance would become if saved right now (see
+/// [TransactionPreviewStore]).
+class _AccountsSidebar extends StatelessWidget {
+  final List<Account> accounts;
+  final bool horizontal;
+
+  const _AccountsSidebar({required this.accounts, required this.horizontal});
+
+  @override
+  Widget build(BuildContext context) {
+    final preview = context.watch<TransactionPreviewStore>();
+
+    if (accounts.isEmpty) return const SizedBox.shrink();
+
+    final cards = [
+      for (final a in accounts) _AccountPreviewCard(account: a, previewDelta: preview.accountId == a.id ? preview.delta : null),
+    ];
+
+    if (horizontal) {
+      return SizedBox(
+        height: 92,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: cards.length,
+          separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
+          itemBuilder: (_, i) => SizedBox(width: 168, child: cards[i]),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('ACCOUNTS', style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.1)),
+        const SizedBox(height: AppSpacing.sm),
+        for (final c in cards) Padding(padding: const EdgeInsets.only(bottom: AppSpacing.sm), child: c),
+      ],
+    );
+  }
+}
+
+class _AccountPreviewCard extends StatelessWidget {
+  final Account account;
+  final double? previewDelta;
+
+  const _AccountPreviewCard({required this.account, this.previewDelta});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasPreview = previewDelta != null && previewDelta != 0;
+    final newBalance = account.balance + (previewDelta ?? 0);
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(account.name, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 4),
+          if (!hasPreview)
+            Text(
+              formatMoney(account.balance),
+              style: const TextStyle(color: AppColors.text, fontSize: 16, fontWeight: FontWeight.w700, fontFeatures: [FontFeature.tabularFigures()]),
+            )
+          else ...[
+            Text(
+              formatMoney(account.balance),
+              style: const TextStyle(color: AppColors.textMuted, fontSize: 11, decoration: TextDecoration.lineThrough, fontFeatures: [FontFeature.tabularFigures()]),
+            ),
+            Text(
+              formatMoney(newBalance),
+              style: TextStyle(
+                color: previewDelta! < 0 ? AppColors.warning : AppColors.accent,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

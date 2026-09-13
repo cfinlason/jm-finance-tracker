@@ -14,6 +14,7 @@ import 'stores/transactions_store.dart';
 import 'stores/recurring_store.dart';
 import 'stores/goals_store.dart';
 import 'stores/debts_store.dart';
+import 'stores/transaction_preview_store.dart';
 
 void main() {
   runApp(const AppRoot());
@@ -34,6 +35,7 @@ class AppRoot extends StatelessWidget {
         ChangeNotifierProvider(create: (context) => RecurringStore(context.read<ErrorBannerStore>())..hydrate()),
         ChangeNotifierProvider(create: (context) => GoalsStore(context.read<ErrorBannerStore>())..hydrate()),
         ChangeNotifierProvider(create: (context) => DebtsStore(context.read<ErrorBannerStore>())..hydrate()),
+        ChangeNotifierProvider(create: (_) => TransactionPreviewStore()),
       ],
       child: const _RouterHost(),
     );

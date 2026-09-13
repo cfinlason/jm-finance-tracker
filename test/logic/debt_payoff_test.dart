@@ -35,5 +35,23 @@ void main() {
       final withExtra = projectDebtPayoff(debts, 200);
       expect(withExtra.snowball.months < withoutExtra.snowball.months, true);
     });
+
+    test('a paid-off debt\'s minimum payment rolls onto the next debt instead of disappearing', () {
+      // Mirrors a real reported case: a large 0%-APR debt whose minimum
+      // payment retires it quickly, alongside a smaller debt whose minimum
+      // payment barely exceeds its own monthly interest. Without rolling
+      // the freed payment over, the second debt would crawl for hundreds
+      // of months at just its own minimum even after the first is gone.
+      final debts = [
+        _debt(id: 'zero-apr', balance: 1884946.80, interestRate: 0, minPayment: 52359.11),
+        _debt(id: 'slow-credit-line', balance: 536178.28, interestRate: 10.19, minPayment: 4682.13),
+      ];
+      final result = projectDebtPayoff(debts, 0);
+      // The zero-APR debt alone pays off in ~36 months; once its payment
+      // rolls onto the credit line, the whole thing should clear well
+      // under 100 months — not the ~425 months a no-rollover simulation
+      // produces.
+      expect(result.snowball.months < 100, true);
+    });
   });
 }

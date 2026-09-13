@@ -43,7 +43,16 @@ PayoffResult _simulate(List<Debt> debts, double extraPayment, bool isSnowball) {
       debt.balance += monthlyInterest;
       debt.balance -= debt.balance < debt.minPayment ? debt.balance : debt.minPayment;
     }
+    // Snowball/avalanche's whole point: once a debt is retired, its monthly
+    // minimum payment doesn't just disappear — it rolls onto the next debt
+    // in priority order, on top of any extra payment the user entered.
+    // Without this, a payoff can look far slower than reality (a debt whose
+    // minimum barely covers its own interest crawls at that minimum forever,
+    // even after an earlier debt frees up a much larger payment).
     var remainingExtra = extraPayment;
+    for (final debt in order) {
+      if (debt.balance <= 0) remainingExtra += debt.minPayment;
+    }
     for (final debt in order) {
       if (remainingExtra <= 0) break;
       if (debt.balance <= 0) continue;
