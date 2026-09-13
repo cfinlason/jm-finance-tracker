@@ -1,12 +1,11 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../models/models.dart';
 import '../utils/id.dart';
-import '../utils/persistence.dart';
+import '../supabase_config.dart';
 import 'error_banner_store.dart';
 
 class TransactionsStore extends ChangeNotifier {
-  static const _key = 'transactions-store';
+  static const _table = 'transactions';
   final ErrorBannerStore errorBanner;
 
   TransactionsStore(this.errorBanner);
@@ -18,21 +17,40 @@ class TransactionsStore extends ChangeNotifier {
   bool get hasHydrated => _hasHydrated;
 
   Future<void> hydrate() async {
-    final raw = await loadJson(_key, errorBanner);
-    if (raw != null) {
-      try {
-        final list = jsonDecode(raw) as List<dynamic>;
-        _transactions = list.map((e) => Transaction.fromJson(e as Map<String, dynamic>)).toList();
-      } catch (_) {
-        _transactions = [];
-        errorBanner.show("Couldn't load saved data — starting fresh");
-      }
+    try {
+      final rows = await supabase.from(_table).select().order('date');
+      _transactions = (rows as List).map((r) => Transaction.fromSupabaseRow(r as Map<String, dynamic>)).toList();
+    } catch (_) {
+      _transactions = [];
+      errorBanner.show("Couldn't load saved data — starting fresh");
     }
     _hasHydrated = true;
     notifyListeners();
   }
 
-  Future<void> _persist() => saveJson(_key, jsonEncode(_transactions.map((t) => t.toJson()).toList()), errorBanner);
+  Future<void> _insert(Transaction transaction) async {
+    try {
+      await supabase.from(_table).insert(transaction.toSupabaseInsert());
+    } catch (_) {
+      errorBanner.show("Couldn't save — try again");
+    }
+  }
+
+  Future<void> _update(String id, Map<String, dynamic> patch) async {
+    try {
+      await supabase.from(_table).update(patch).eq('id', id);
+    } catch (_) {
+      errorBanner.show("Couldn't save — try again");
+    }
+  }
+
+  Future<void> _delete(String id) async {
+    try {
+      await supabase.from(_table).delete().eq('id', id);
+    } catch (_) {
+      errorBanner.show("Couldn't delete — try again");
+    }
+  }
 
   String addTransaction({
     required String accountId,
@@ -58,7 +76,7 @@ class TransactionsStore extends ChangeNotifier {
     );
     _transactions = [..._transactions, transaction];
     notifyListeners();
-    _persist();
+    _insert(transaction);
     return id;
   }
 
@@ -78,12 +96,31 @@ class TransactionsStore extends ChangeNotifier {
             : t)
         .toList();
     notifyListeners();
-    _persist();
+    _update(id, {
+      'account_id': ?accountId,
+      'category_id': ?categoryId,
+      'amount': ?amount,
+      'note': ?note,
+      'date': ?date,
+      'type': ?type,
+      'goal_id': ?goalId,
+    });
   }
 
   void removeTransaction(String id) {
     _transactions = _transactions.where((t) => t.id != id).toList();
     notifyListeners();
-    _persist();
+    _delete(id);
+  }
+
+  Future<void> migrateIn(List<Transaction> localTransactions) async {
+    if (localTransactions.isEmpty) return;
+    _transactions = localTransactions;
+    notifyListeners();
+    try {
+      await supabase.from(_table).insert(localTransactions.map((t) => t.toSupabaseInsert()).toList());
+    } catch (_) {
+      errorBanner.show("Couldn't finish moving your data to the cloud — try again");
+    }
   }
 }

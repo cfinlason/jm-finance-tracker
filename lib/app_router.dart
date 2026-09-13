@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import 'stores/auth_store.dart';
 import 'stores/settings_store.dart';
 import 'stores/accounts_store.dart';
 import 'stores/categories_store.dart';
@@ -10,6 +11,8 @@ import 'stores/recurring_store.dart';
 import 'stores/goals_store.dart';
 import 'stores/debts_store.dart';
 
+import 'screens/auth/login_screen.dart';
+import 'screens/auth/signup_screen.dart';
 import 'screens/onboarding/welcome_screen.dart';
 import 'screens/onboarding/accounts_screen.dart';
 import 'screens/onboarding/income_screen.dart';
@@ -47,13 +50,26 @@ GoRouter buildAppRouter({required Listenable refreshListenable}) {
     initialLocation: '/',
     refreshListenable: refreshListenable,
     redirect: (context, state) {
+      final isAuthRoute = state.matchedLocation.startsWith('/auth');
+      final isSignedIn = context.read<AuthStore>().isSignedIn;
+
+      if (!isSignedIn) {
+        return isAuthRoute ? null : '/auth/login';
+      }
+      // Signed in but on an auth screen (e.g. just completed sign-in/up, or
+      // navigated back to it manually) — send onward once data is ready.
+      if (isAuthRoute && !_allHydrated(context)) {
+        return null;
+      }
+
       if (!_allHydrated(context)) {
         return state.matchedLocation == '/' ? null : '/';
       }
+
       final hasCompletedOnboarding = context.read<SettingsStore>().hasCompletedOnboarding;
       final isOnboardingRoute = state.matchedLocation.startsWith('/onboarding');
 
-      if (state.matchedLocation == '/') {
+      if (state.matchedLocation == '/' || isAuthRoute) {
         return hasCompletedOnboarding ? '/home' : '/onboarding/welcome';
       }
       if (!hasCompletedOnboarding && !isOnboardingRoute) {
@@ -63,6 +79,10 @@ GoRouter buildAppRouter({required Listenable refreshListenable}) {
     },
     routes: [
       GoRoute(path: '/', builder: (context, state) => const LoadingState()),
+
+      // Auth routes
+      GoRoute(path: '/auth/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(path: '/auth/signup', builder: (context, state) => const SignupScreen()),
 
       // Onboarding routes
       GoRoute(path: '/onboarding/welcome', builder: (context, state) => const WelcomeScreen()),

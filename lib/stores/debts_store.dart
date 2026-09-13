@@ -1,12 +1,11 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../models/models.dart';
 import '../utils/id.dart';
-import '../utils/persistence.dart';
+import '../supabase_config.dart';
 import 'error_banner_store.dart';
 
 class DebtsStore extends ChangeNotifier {
-  static const _key = 'debts-store';
+  static const _table = 'debts';
   final ErrorBannerStore errorBanner;
 
   DebtsStore(this.errorBanner);
@@ -18,21 +17,40 @@ class DebtsStore extends ChangeNotifier {
   bool get hasHydrated => _hasHydrated;
 
   Future<void> hydrate() async {
-    final raw = await loadJson(_key, errorBanner);
-    if (raw != null) {
-      try {
-        final list = jsonDecode(raw) as List<dynamic>;
-        _debts = list.map((e) => Debt.fromJson(e as Map<String, dynamic>)).toList();
-      } catch (_) {
-        _debts = [];
-        errorBanner.show("Couldn't load saved data — starting fresh");
-      }
+    try {
+      final rows = await supabase.from(_table).select().order('created_at');
+      _debts = (rows as List).map((r) => Debt.fromSupabaseRow(r as Map<String, dynamic>)).toList();
+    } catch (_) {
+      _debts = [];
+      errorBanner.show("Couldn't load saved data — starting fresh");
     }
     _hasHydrated = true;
     notifyListeners();
   }
 
-  Future<void> _persist() => saveJson(_key, jsonEncode(_debts.map((d) => d.toJson()).toList()), errorBanner);
+  Future<void> _insert(Debt debt) async {
+    try {
+      await supabase.from(_table).insert(debt.toSupabaseInsert());
+    } catch (_) {
+      errorBanner.show("Couldn't save — try again");
+    }
+  }
+
+  Future<void> _update(String id, Map<String, dynamic> patch) async {
+    try {
+      await supabase.from(_table).update(patch).eq('id', id);
+    } catch (_) {
+      errorBanner.show("Couldn't save — try again");
+    }
+  }
+
+  Future<void> _delete(String id) async {
+    try {
+      await supabase.from(_table).delete().eq('id', id);
+    } catch (_) {
+      errorBanner.show("Couldn't delete — try again");
+    }
+  }
 
   String addDebt({
     required String name,
@@ -45,7 +63,7 @@ class DebtsStore extends ChangeNotifier {
     final debt = Debt(id: id, name: name, balance: balance, interestRate: interestRate, minPayment: minPayment, dueDayOfMonth: dueDayOfMonth);
     _debts = [..._debts, debt];
     notifyListeners();
-    _persist();
+    _insert(debt);
     return id;
   }
 
@@ -71,12 +89,30 @@ class DebtsStore extends ChangeNotifier {
             : d)
         .toList();
     notifyListeners();
-    _persist();
+    _update(id, {
+      'name': ?name,
+      'balance': ?balance,
+      'interest_rate': ?interestRate,
+      'min_payment': ?minPayment,
+      'due_day_of_month': ?dueDayOfMonth,
+      'recurring_rule_id': ?recurringRuleId,
+    });
   }
 
   void removeDebt(String id) {
     _debts = _debts.where((d) => d.id != id).toList();
     notifyListeners();
-    _persist();
+    _delete(id);
+  }
+
+  Future<void> migrateIn(List<Debt> localDebts) async {
+    if (localDebts.isEmpty) return;
+    _debts = localDebts;
+    notifyListeners();
+    try {
+      await supabase.from(_table).insert(localDebts.map((d) => d.toSupabaseInsert()).toList());
+    } catch (_) {
+      errorBanner.show("Couldn't finish moving your data to the cloud — try again");
+    }
   }
 }

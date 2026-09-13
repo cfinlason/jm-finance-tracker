@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_screen.dart';
 import '../widgets/content_bounds.dart';
 import '../widgets/app_card.dart';
 import '../widgets/list_row.dart';
+import '../stores/auth_store.dart';
 
 class _MoreItem {
   final String label;
@@ -27,12 +29,18 @@ class MoreScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final authStore = context.watch<AuthStore>();
+
     return AppScreen(
       child: ContentBounds(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('More', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+            if (authStore.email != null) ...[
+              const SizedBox(height: 4),
+              Text('Signed in as ${authStore.email}', style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+            ],
             const SizedBox(height: AppSpacing.lg),
             AppCard(
               child: Column(
@@ -46,6 +54,15 @@ class MoreScreen extends StatelessWidget {
                       onTap: () => context.push(_items[i].route),
                     ),
                 ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AppCard(
+              child: ListRow(
+                icon: const Icon(LucideIcons.logOut, size: 16, color: AppColors.warning),
+                title: 'Sign Out',
+                isLast: true,
+                onTap: () => authStore.signOut(),
               ),
             ),
             const SizedBox(height: AppSpacing.xxl),

@@ -34,6 +34,17 @@ class Account {
         currency: json['currency'] as String? ?? 'JMD',
         createdAt: json['createdAt'] as String,
       );
+
+  Map<String, dynamic> toSupabaseInsert() => {'id': id, 'name': name, 'type': type, 'balance': balance, 'currency': currency};
+
+  factory Account.fromSupabaseRow(Map<String, dynamic> row) => Account(
+        id: row['id'] as String,
+        name: row['name'] as String,
+        type: row['type'] as String,
+        balance: (row['balance'] as num).toDouble(),
+        currency: row['currency'] as String? ?? 'JMD',
+        createdAt: row['created_at'] as String,
+      );
 }
 
 class Category {
@@ -53,6 +64,16 @@ class Category {
         icon: json['icon'] as String,
         isCustom: json['isCustom'] as bool,
         isIncome: json['isIncome'] as bool,
+      );
+
+  Map<String, dynamic> toSupabaseInsert() => {'id': id, 'name': name, 'icon': icon, 'is_custom': isCustom, 'is_income': isIncome};
+
+  factory Category.fromSupabaseRow(Map<String, dynamic> row) => Category(
+        id: row['id'] as String,
+        name: row['name'] as String,
+        icon: row['icon'] as String,
+        isCustom: row['is_custom'] as bool,
+        isIncome: row['is_income'] as bool,
       );
 }
 
@@ -114,6 +135,30 @@ class Transaction {
         recurringRuleId: json['recurringRuleId'] as String?,
         goalId: json['goalId'] as String?,
       );
+
+  Map<String, dynamic> toSupabaseInsert() => {
+        'id': id,
+        'account_id': accountId,
+        'category_id': categoryId,
+        'amount': amount,
+        'note': note,
+        'date': date,
+        'type': type,
+        'recurring_rule_id': recurringRuleId,
+        'goal_id': goalId,
+      };
+
+  factory Transaction.fromSupabaseRow(Map<String, dynamic> row) => Transaction(
+        id: row['id'] as String,
+        accountId: row['account_id'] as String,
+        categoryId: row['category_id'] as String? ?? '',
+        amount: (row['amount'] as num).toDouble(),
+        note: row['note'] as String? ?? '',
+        date: row['date'] as String,
+        type: row['type'] as String,
+        recurringRuleId: row['recurring_rule_id'] as String?,
+        goalId: row['goal_id'] as String?,
+      );
 }
 
 class RecurringRule {
@@ -174,6 +219,30 @@ class RecurringRule {
         dayOfMonth: json['dayOfMonth'] as int?,
         dayOfWeek: json['dayOfWeek'] as int?,
       );
+
+  Map<String, dynamic> toSupabaseInsert() => {
+        'id': id,
+        'name': name,
+        'category_id': categoryId,
+        'account_id': accountId,
+        'amount': amount,
+        'frequency': frequency,
+        'next_due_date': nextDueDate,
+        'day_of_month': dayOfMonth,
+        'day_of_week': dayOfWeek,
+      };
+
+  factory RecurringRule.fromSupabaseRow(Map<String, dynamic> row) => RecurringRule(
+        id: row['id'] as String,
+        name: row['name'] as String,
+        categoryId: row['category_id'] as String? ?? '',
+        accountId: row['account_id'] as String,
+        amount: (row['amount'] as num).toDouble(),
+        frequency: row['frequency'] as String,
+        nextDueDate: row['next_due_date'] as String,
+        dayOfMonth: row['day_of_month'] as int?,
+        dayOfWeek: row['day_of_week'] as int?,
+      );
 }
 
 class Goal {
@@ -204,6 +273,24 @@ class Goal {
         targetAmount: (json['targetAmount'] as num).toDouble(),
         currentAmount: (json['currentAmount'] as num?)?.toDouble() ?? 0,
         targetDate: json['targetDate'] as String?,
+      );
+
+  Map<String, dynamic> toSupabaseInsert() => {
+        'id': id,
+        'name': name,
+        'icon': icon,
+        'target_amount': targetAmount,
+        'current_amount': currentAmount,
+        'target_date': targetDate,
+      };
+
+  factory Goal.fromSupabaseRow(Map<String, dynamic> row) => Goal(
+        id: row['id'] as String,
+        name: row['name'] as String,
+        icon: row['icon'] as String,
+        targetAmount: (row['target_amount'] as num).toDouble(),
+        currentAmount: (row['current_amount'] as num?)?.toDouble() ?? 0,
+        targetDate: row['target_date'] as String?,
       );
 }
 
@@ -268,6 +355,26 @@ class Debt {
         dueDayOfMonth: json['dueDayOfMonth'] as int,
         recurringRuleId: json['recurringRuleId'] as String?,
       );
+
+  Map<String, dynamic> toSupabaseInsert() => {
+        'id': id,
+        'name': name,
+        'balance': balance,
+        'interest_rate': interestRate,
+        'min_payment': minPayment,
+        'due_day_of_month': dueDayOfMonth,
+        'recurring_rule_id': recurringRuleId,
+      };
+
+  factory Debt.fromSupabaseRow(Map<String, dynamic> row) => Debt(
+        id: row['id'] as String,
+        name: row['name'] as String,
+        balance: (row['balance'] as num).toDouble(),
+        interestRate: (row['interest_rate'] as num).toDouble(),
+        minPayment: (row['min_payment'] as num).toDouble(),
+        dueDayOfMonth: row['due_day_of_month'] as int,
+        recurringRuleId: row['recurring_rule_id'] as String?,
+      );
 }
 
 class UserSettings {
@@ -289,5 +396,10 @@ class UserSettings {
         hasCompletedOnboarding: json['hasCompletedOnboarding'] as bool? ?? false,
         monthlyIncomeEstimate: (json['monthlyIncomeEstimate'] as num?)?.toDouble() ?? 0,
         currency: json['currency'] as String? ?? 'JMD',
+      );
+
+  factory UserSettings.fromSupabaseRow(Map<String, dynamic> row) => UserSettings(
+        hasCompletedOnboarding: row['has_completed_onboarding'] as bool? ?? false,
+        monthlyIncomeEstimate: (row['monthly_income_estimate'] as num?)?.toDouble() ?? 0,
       );
 }
