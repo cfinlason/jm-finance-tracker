@@ -68,15 +68,13 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xl),
-                  IntrinsicHeight(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(flex: 2, child: recentSection),
-                        const SizedBox(width: AppSpacing.xl),
-                        Expanded(child: billsSection),
-                      ],
-                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(flex: 2, child: recentSection),
+                      const SizedBox(width: AppSpacing.xl),
+                      Expanded(child: billsSection),
+                    ],
                   ),
                 ],
               )

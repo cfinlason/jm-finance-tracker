@@ -101,18 +101,16 @@ class _RecurringManagementScreenState extends State<RecurringManagementScreen> {
             ),
             const SizedBox(height: AppSpacing.lg),
             if (expanded)
-              IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(flex: 3, child: calendar),
-                    const SizedBox(width: AppSpacing.xl),
-                    SizedBox(
-                      width: 300,
-                      child: _DayDetailPanel(day: _selectedDay, occurrences: _selectedDay == null ? const [] : _forDay(occurrences, _selectedDay!)),
-                    ),
-                  ],
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 3, child: calendar),
+                  const SizedBox(width: AppSpacing.xl),
+                  SizedBox(
+                    width: 300,
+                    child: _DayDetailPanel(day: _selectedDay, occurrences: _selectedDay == null ? const [] : _forDay(occurrences, _selectedDay!)),
+                  ),
+                ],
               )
             else
               calendar,
