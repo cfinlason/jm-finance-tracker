@@ -31,5 +31,23 @@ void main() {
       expect(nextOccurrence(start, 'biweekly'), DateTime(2026, 1, 15));
       expect(nextOccurrence(start, 'monthly'), DateTime(2026, 2, 1));
     });
+
+    group('nextDateForDayOfMonth', () {
+      test('stays in the current month when the day has not passed yet', () {
+        expect(nextDateForDayOfMonth(DateTime(2026, 1, 10), 15), DateTime(2026, 1, 15));
+      });
+
+      test('returns today when the day-of-month matches today', () {
+        expect(nextDateForDayOfMonth(DateTime(2026, 1, 15), 15), DateTime(2026, 1, 15));
+      });
+
+      test('rolls to next month when the day has already passed', () {
+        expect(nextDateForDayOfMonth(DateTime(2026, 1, 20), 15), DateTime(2026, 2, 15));
+      });
+
+      test('clamps to the last day of a shorter month', () {
+        expect(nextDateForDayOfMonth(DateTime(2026, 2, 1), 31), DateTime(2026, 2, 28));
+      });
+    });
   });
 }

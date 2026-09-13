@@ -214,19 +214,50 @@ class Debt {
   final double interestRate; // APR %
   final double minPayment;
   final int dueDayOfMonth;
+  // Id of the RecurringRule created for this debt's minimum payment, kept in
+  // sync by DebtActions (lib/logic/debt_actions.dart). Null for debts that
+  // predate this linkage, or if a recurring bill couldn't be created (e.g.
+  // no accounts/categories exist yet).
+  final String? recurringRuleId;
 
-  Debt({required this.id, required this.name, required this.balance, required this.interestRate, required this.minPayment, required this.dueDayOfMonth});
+  Debt({
+    required this.id,
+    required this.name,
+    required this.balance,
+    required this.interestRate,
+    required this.minPayment,
+    required this.dueDayOfMonth,
+    this.recurringRuleId,
+  });
 
-  Debt copyWith({String? name, double? balance, double? interestRate, double? minPayment}) => Debt(
+  Debt copyWith({
+    String? name,
+    double? balance,
+    double? interestRate,
+    double? minPayment,
+    int? dueDayOfMonth,
+    String? recurringRuleId,
+    bool clearRecurringRuleId = false,
+  }) =>
+      Debt(
         id: id,
         name: name ?? this.name,
         balance: balance ?? this.balance,
         interestRate: interestRate ?? this.interestRate,
         minPayment: minPayment ?? this.minPayment,
-        dueDayOfMonth: dueDayOfMonth,
+        dueDayOfMonth: dueDayOfMonth ?? this.dueDayOfMonth,
+        recurringRuleId: clearRecurringRuleId ? null : (recurringRuleId ?? this.recurringRuleId),
       );
 
-  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'balance': balance, 'interestRate': interestRate, 'minPayment': minPayment, 'dueDayOfMonth': dueDayOfMonth};
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'balance': balance,
+        'interestRate': interestRate,
+        'minPayment': minPayment,
+        'dueDayOfMonth': dueDayOfMonth,
+        'recurringRuleId': recurringRuleId,
+      };
 
   factory Debt.fromJson(Map<String, dynamic> json) => Debt(
         id: json['id'] as String,
@@ -235,6 +266,7 @@ class Debt {
         interestRate: (json['interestRate'] as num).toDouble(),
         minPayment: (json['minPayment'] as num).toDouble(),
         dueDayOfMonth: json['dueDayOfMonth'] as int,
+        recurringRuleId: json['recurringRuleId'] as String?,
       );
 }
 

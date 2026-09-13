@@ -49,8 +49,27 @@ class DebtsStore extends ChangeNotifier {
     return id;
   }
 
-  void updateDebt(String id, {String? name, double? balance, double? interestRate, double? minPayment}) {
-    _debts = _debts.map((d) => d.id == id ? d.copyWith(name: name, balance: balance, interestRate: interestRate, minPayment: minPayment) : d).toList();
+  void updateDebt(
+    String id, {
+    String? name,
+    double? balance,
+    double? interestRate,
+    double? minPayment,
+    int? dueDayOfMonth,
+    String? recurringRuleId,
+  }) {
+    _debts = _debts
+        .map((d) => d.id == id
+            ? d.copyWith(
+                name: name,
+                balance: balance,
+                interestRate: interestRate,
+                minPayment: minPayment,
+                dueDayOfMonth: dueDayOfMonth,
+                recurringRuleId: recurringRuleId,
+              )
+            : d)
+        .toList();
     notifyListeners();
     _persist();
   }

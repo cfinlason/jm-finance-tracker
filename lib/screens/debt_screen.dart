@@ -170,7 +170,7 @@ class _DebtScreenState extends State<DebtScreen> {
                             Text(d.name, style: const TextStyle(color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
                             const SizedBox(height: 4),
                             Text(
-                              '${formatMoney(d.balance)} · ${d.interestRate}% APR · Min ${formatMoney(d.minPayment)}',
+                              '${formatMoney(d.balance)} · ${d.interestRate}% APR · Min ${formatMoney(d.minPayment)} · Due day ${d.dueDayOfMonth}',
                               style: const TextStyle(color: AppColors.textMuted, fontSize: 12, fontFeatures: [FontFeature.tabularFigures()]),
                             ),
                           ],

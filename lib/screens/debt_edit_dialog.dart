@@ -6,6 +6,10 @@ import '../widgets/app_dialog.dart';
 import '../widgets/app_form_field.dart';
 import '../widgets/app_button.dart';
 import '../stores/debts_store.dart';
+import '../stores/recurring_store.dart';
+import '../stores/accounts_store.dart';
+import '../stores/categories_store.dart';
+import '../logic/debt_actions.dart';
 
 class DebtEditDialog extends StatefulWidget {
   final String id;
@@ -20,6 +24,7 @@ class _DebtEditDialogState extends State<DebtEditDialog> {
   String _balanceText = '';
   String _rateText = '';
   String _minPaymentText = '';
+  String _dueDayText = '1';
   bool _initialized = false;
 
   @override
@@ -42,18 +47,35 @@ class _DebtEditDialogState extends State<DebtEditDialog> {
       _balanceText = debt != null ? debt.balance.toString() : '';
       _rateText = debt != null ? debt.interestRate.toString() : '';
       _minPaymentText = debt != null ? debt.minPayment.toString() : '';
+      _dueDayText = debt != null ? debt.dueDayOfMonth.toString() : '1';
       _initialized = true;
     }
+
+    final actions = DebtActions(
+      debtsStore: debtsStore,
+      recurringStore: context.read<RecurringStore>(),
+      accountsStore: context.read<AccountsStore>(),
+      categoriesStore: context.read<CategoriesStore>(),
+    );
 
     void handleSave() {
       final balance = double.tryParse(_balanceText);
       final interestRate = double.tryParse(_rateText);
       final minPayment = double.tryParse(_minPaymentText);
-      if (_name.isEmpty || balance == null || interestRate == null || minPayment == null) return;
+      final dueDay = int.tryParse(_dueDayText);
+      if (_name.isEmpty || balance == null || interestRate == null || minPayment == null || dueDay == null || dueDay < 1 || dueDay > 31) return;
       if (isNew) {
-        debtsStore.addDebt(name: _name, balance: balance, interestRate: interestRate, minPayment: minPayment, dueDayOfMonth: 1);
+        actions.createDebtWithRecurring(name: _name, balance: balance, interestRate: interestRate, minPayment: minPayment, dueDayOfMonth: dueDay);
       } else if (debt != null) {
-        debtsStore.updateDebt(debt.id, name: _name, balance: balance, interestRate: interestRate, minPayment: minPayment);
+        actions.updateDebtWithRecurring(
+          debt.id,
+          name: _name,
+          balance: balance,
+          interestRate: interestRate,
+          minPayment: minPayment,
+          dueDayOfMonth: dueDay,
+          existingRecurringRuleId: debt.recurringRuleId,
+        );
       }
       Navigator.of(context).pop();
     }
@@ -66,12 +88,17 @@ class _DebtEditDialogState extends State<DebtEditDialog> {
         builder: (dialogContext) => AlertDialog(
           backgroundColor: AppColors.surface,
           title: const Text('Delete debt?', style: TextStyle(color: AppColors.text)),
-          content: const Text('This cannot be undone.', style: TextStyle(color: AppColors.textSecondary)),
+          content: Text(
+            target.recurringRuleId != null
+                ? 'This will also delete its linked recurring bill. This cannot be undone.'
+                : 'This cannot be undone.',
+            style: const TextStyle(color: AppColors.textSecondary),
+          ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
             TextButton(
               onPressed: () {
-                debtsStore.removeDebt(target.id);
+                actions.deleteDebtCascade(target.id, recurringRuleId: target.recurringRuleId);
                 Navigator.pop(dialogContext);
                 Navigator.of(context).pop();
               },
@@ -82,7 +109,8 @@ class _DebtEditDialogState extends State<DebtEditDialog> {
       );
     }
 
-    final isValid = _name.isNotEmpty && _balanceText.isNotEmpty && _rateText.isNotEmpty && _minPaymentText.isNotEmpty;
+    final dueDayValid = (int.tryParse(_dueDayText) ?? 0) >= 1 && (int.tryParse(_dueDayText) ?? 0) <= 31;
+    final isValid = _name.isNotEmpty && _balanceText.isNotEmpty && _rateText.isNotEmpty && _minPaymentText.isNotEmpty && dueDayValid;
 
     return AppDialog(
       title: isNew ? 'Add Debt' : 'Edit Debt',
@@ -97,6 +125,19 @@ class _DebtEditDialogState extends State<DebtEditDialog> {
           AppFormField(label: 'Interest rate (APR %)', value: _rateText, onChanged: (v) => setState(() => _rateText = v), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
           const SizedBox(height: AppSpacing.md),
           AppFormField(label: 'Minimum payment (J\$)', value: _minPaymentText, onChanged: (v) => setState(() => _minPaymentText = v), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+          const SizedBox(height: AppSpacing.md),
+          AppFormField(
+            label: 'Due day of month (1-31)',
+            value: _dueDayText,
+            onChanged: (v) => setState(() => _dueDayText = v),
+            keyboardType: TextInputType.number,
+            error: !dueDayValid ? 'Enter a day between 1 and 31' : null,
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'This is added as a recurring bill automatically — no need to add it separately.',
+            style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+          ),
           const SizedBox(height: AppSpacing.xl),
           AppButton(label: 'Save', onPressed: isValid ? handleSave : null),
           if (!isNew && debt != null) ...[

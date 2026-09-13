@@ -16,6 +16,23 @@ DateTime addMonths(DateTime date, int months) {
 
 bool isBefore(DateTime a, DateTime b) => a.isBefore(b);
 
+/// The next date on/after [from] (ignoring time-of-day) whose day-of-month
+/// matches [dayOfMonth], clamped to the last day of a shorter month (e.g.
+/// dayOfMonth 31 in February becomes the 28th/29th). If [from]'s own day has
+/// already passed [dayOfMonth] this month, rolls forward to next month.
+DateTime nextDateForDayOfMonth(DateTime from, int dayOfMonth) {
+  DateTime candidateFor(DateTime monthAnchor) {
+    final daysInMonth = DateTime(monthAnchor.year, monthAnchor.month + 1, 0).day;
+    final day = dayOfMonth > daysInMonth ? daysInMonth : dayOfMonth;
+    return DateTime(monthAnchor.year, monthAnchor.month, day);
+  }
+
+  final today = DateTime(from.year, from.month, from.day);
+  final thisMonth = candidateFor(from);
+  if (!thisMonth.isBefore(today)) return thisMonth;
+  return candidateFor(DateTime(from.year, from.month + 1, 1));
+}
+
 DateTime nextOccurrence(DateTime from, String frequency) {
   switch (frequency) {
     case 'weekly':
