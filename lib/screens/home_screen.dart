@@ -13,8 +13,10 @@ import '../widgets/list_row.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/icon_chip.dart';
 import '../widgets/category_icon.dart';
+import '../widgets/month_calendar.dart';
 import '../utils/money.dart';
 import '../logic/safe_to_spend.dart';
+import '../logic/bill_calendar.dart';
 import '../stores/accounts_store.dart';
 import '../stores/recurring_store.dart';
 import '../stores/transactions_store.dart';
@@ -47,6 +49,7 @@ class HomeScreen extends StatelessWidget {
 
     final heroSection = _HeroSection(safeToSpend: safeToSpend, monthIncome: monthIncome, monthSpending: monthSpending, upcoming: upcoming);
     final recentSection = _RecentTransactionsSection(recentTop5: recentTop5, categoryFor: categoryFor);
+    const billsSection = _BillsCalendarSection();
 
     return AppScreen(
       child: ContentBounds(
@@ -65,7 +68,16 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xl),
-                  recentSection,
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(flex: 2, child: recentSection),
+                        const SizedBox(width: AppSpacing.xl),
+                        Expanded(child: billsSection),
+                      ],
+                    ),
+                  ),
                 ],
               )
             : Column(
@@ -77,6 +89,8 @@ class HomeScreen extends StatelessWidget {
                     const SizedBox(height: AppSpacing.xl),
                   ],
                   recentSection,
+                  const SizedBox(height: AppSpacing.xl),
+                  billsSection,
                 ],
               ),
       ),
@@ -264,6 +278,40 @@ class _AccountPreviewCard extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// A read-only preview of this month's bills as a mini calendar. Every
+/// interaction (a day, or the month arrows) just jumps to the full
+/// interactive calendar on the Recurring Bills tab rather than duplicating
+/// its day-detail popup here.
+class _BillsCalendarSection extends StatelessWidget {
+  const _BillsCalendarSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final rules = context.watch<RecurringStore>().rules;
+    final month = DateTime.now();
+    final occurrences = occurrencesInMonth(rules, month);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Bills This Month', style: TextStyle(color: AppColors.text, fontSize: 20, fontWeight: FontWeight.w700)),
+        const SizedBox(height: AppSpacing.md),
+        AppCard(
+          child: MonthCalendar(
+            month: month,
+            occurrences: occurrences,
+            selectedDate: null,
+            onSelectDate: (_) => context.push('/recurring'),
+            onPreviousMonth: () => context.push('/recurring'),
+            onNextMonth: () => context.push('/recurring'),
+            compact: true,
+          ),
+        ),
+      ],
     );
   }
 }

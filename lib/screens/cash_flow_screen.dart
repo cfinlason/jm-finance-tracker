@@ -8,6 +8,7 @@ import '../widgets/content_bounds.dart';
 import '../widgets/app_card.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/icon_chip.dart';
+import '../widgets/home_button.dart';
 import '../utils/money.dart';
 import '../stores/accounts_store.dart';
 import '../stores/recurring_store.dart';
@@ -40,7 +41,13 @@ class CashFlowScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Cash Flow', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: const [
+                Text('Cash Flow', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
+                HomeButton(),
+              ],
+            ),
             const SizedBox(height: AppSpacing.lg),
             AppCard(
               margin: const EdgeInsets.only(bottom: AppSpacing.lg),

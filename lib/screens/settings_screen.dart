@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_screen.dart';
@@ -34,7 +33,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     void handleSave() {
       if (!isValid) return;
       context.read<SettingsStore>().setMonthlyIncomeEstimate(income);
-      context.pop();
     }
 
     return AppScreen(

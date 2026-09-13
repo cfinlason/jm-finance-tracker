@@ -23,7 +23,6 @@ import 'screens/home_screen.dart';
 import 'screens/transactions_screen.dart';
 import 'screens/insights_screen.dart';
 import 'screens/goals_list_screen.dart';
-import 'screens/more_screen.dart';
 import 'screens/debt_screen.dart';
 import 'screens/cash_flow_screen.dart';
 import 'screens/accounts_management_screen.dart';
@@ -92,7 +91,11 @@ GoRouter buildAppRouter({required Listenable refreshListenable}) {
       GoRoute(path: '/onboarding/goals', builder: (context, state) => const OnboardingGoalsScreen()),
       GoRoute(path: '/onboarding/done', builder: (context, state) => const OnboardingDoneScreen()),
 
-      // TAB SHELL
+      // TAB SHELL — every destination the app has (besides Debt/Cash Flow,
+      // which stay pushed routes below) is a branch here, so the persistent
+      // nav chrome (bottom bar + "More" sheet on Compact, full sidebar on
+      // Expanded — see MainShell) never disappears while browsing between
+      // them. Branch order matters: MainShell indexes into this list.
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) => MainShell(navigationShell: navigationShell),
         branches: [
@@ -100,18 +103,19 @@ GoRouter buildAppRouter({required Listenable refreshListenable}) {
           StatefulShellBranch(routes: [GoRoute(path: '/transactions', builder: (context, state) => const TransactionsScreen())]),
           StatefulShellBranch(routes: [GoRoute(path: '/insights', builder: (context, state) => const InsightsScreen())]),
           StatefulShellBranch(routes: [GoRoute(path: '/goals', builder: (context, state) => const GoalsListScreen())]),
-          StatefulShellBranch(routes: [GoRoute(path: '/more', builder: (context, state) => const MoreScreen())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/recurring', builder: (context, state) => const RecurringManagementScreen())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/accounts', builder: (context, state) => const AccountsManagementScreen())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/categories', builder: (context, state) => const CategoriesScreen())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/notifications', builder: (context, state) => const NotificationsScreen())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/settings', builder: (context, state) => const SettingsScreen())]),
         ],
       ),
 
-      // Pushed routes (outside the tab shell)
+      // Pushed routes (outside the tab shell) — reached via a quick action or
+      // link rather than a persistent nav destination; HomeButton (see
+      // widgets/home_button.dart) gives these a way back to Home.
       GoRoute(path: '/debts', builder: (context, state) => const DebtScreen()),
       GoRoute(path: '/cash-flow', builder: (context, state) => const CashFlowScreen()),
-      GoRoute(path: '/accounts', builder: (context, state) => const AccountsManagementScreen()),
-      GoRoute(path: '/categories', builder: (context, state) => const CategoriesScreen()),
-      GoRoute(path: '/recurring', builder: (context, state) => const RecurringManagementScreen()),
-      GoRoute(path: '/notifications', builder: (context, state) => const NotificationsScreen()),
-      GoRoute(path: '/settings', builder: (context, state) => const SettingsScreen()),
     ],
   );
 }

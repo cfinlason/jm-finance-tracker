@@ -10,6 +10,7 @@ import '../widgets/empty_state.dart';
 import '../widgets/icon_chip.dart';
 import '../widgets/app_segmented_control.dart';
 import '../widgets/app_form_field.dart';
+import '../widgets/home_button.dart';
 import '../utils/money.dart';
 import '../logic/debt_payoff.dart';
 import '../models/models.dart';
@@ -79,7 +80,12 @@ class _DebtScreenState extends State<DebtScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Debt', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
-                IconButton(icon: const Icon(LucideIcons.plus, color: AppColors.accent), onPressed: () => showDialog(context: context, builder: (_) => const DebtEditDialog(id: 'new'))),
+                Row(
+                  children: [
+                    const HomeButton(),
+                    IconButton(icon: const Icon(LucideIcons.plus, color: AppColors.accent), onPressed: () => showDialog(context: context, builder: (_) => const DebtEditDialog(id: 'new'))),
+                  ],
+                ),
               ],
             ),
             if (debts.isEmpty)
