@@ -12,6 +12,7 @@ import 'logic/cloud_migration.dart';
 import 'stores/error_banner_store.dart';
 import 'stores/auth_store.dart';
 import 'stores/settings_store.dart';
+import 'stores/exchange_rate_store.dart';
 import 'stores/accounts_store.dart';
 import 'stores/categories_store.dart';
 import 'stores/transactions_store.dart';
@@ -36,6 +37,7 @@ class AppRoot extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ErrorBannerStore()),
         ChangeNotifierProvider(create: (_) => AuthStore()),
         ChangeNotifierProvider(create: (context) => SettingsStore(context.read<ErrorBannerStore>())),
+        ChangeNotifierProvider(create: (context) => ExchangeRateStore(context.read<SettingsStore>())),
         ChangeNotifierProvider(create: (context) => AccountsStore(context.read<ErrorBannerStore>())),
         ChangeNotifierProvider(create: (context) => CategoriesStore(context.read<ErrorBannerStore>())),
         ChangeNotifierProvider(create: (context) => TransactionsStore(context.read<ErrorBannerStore>())),

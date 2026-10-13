@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 import '../stores/settings_store.dart';
+import '../stores/exchange_rate_store.dart';
 import '../stores/accounts_store.dart';
 import '../stores/categories_store.dart';
 import '../stores/transactions_store.dart';
@@ -11,8 +12,9 @@ import '../stores/debts_store.dart';
 /// Fetches every data store's contents for the current session. Called
 /// once right after a successful sign-in/sign-up, and again on cold start
 /// if a session is already active (see main.dart).
-Future<void> hydrateAllStores(BuildContext context) {
-  return Future.wait([
+Future<void> hydrateAllStores(BuildContext context) async {
+  final rates = context.read<ExchangeRateStore>();
+  await Future.wait([
     context.read<SettingsStore>().hydrate(),
     context.read<AccountsStore>().hydrate(),
     context.read<CategoriesStore>().hydrate(),
@@ -21,4 +23,7 @@ Future<void> hydrateAllStores(BuildContext context) {
     context.read<GoalsStore>().hydrate(),
     context.read<DebtsStore>().hydrate(),
   ]);
+  rates.loadCached();
+  // Fire and forget; refresh() never throws.
+  rates.refresh();
 }
