@@ -11,6 +11,7 @@ class ListRow extends StatelessWidget {
   final bool showChevron;
   final VoidCallback? onTap;
   final bool isLast;
+  final String? badge;
 
   const ListRow({
     super.key,
@@ -21,6 +22,7 @@ class ListRow extends StatelessWidget {
     this.showChevron = false,
     this.onTap,
     this.isLast = false,
+    this.badge,
   });
 
   @override
@@ -43,6 +45,15 @@ class ListRow extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(caption!, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                  ),
+                if (badge != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(color: AppColors.stepGreen.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppRadius.pill)),
+                      child: Text(badge!, style: const TextStyle(color: AppColors.stepGreen, fontSize: 11, fontWeight: FontWeight.w600)),
+                    ),
                   ),
               ],
             ),

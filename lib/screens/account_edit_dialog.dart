@@ -6,6 +6,7 @@ import '../widgets/app_dialog.dart';
 import '../widgets/app_form_field.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_segmented_control.dart';
+import '../widgets/app_toggle.dart';
 import '../stores/accounts_store.dart';
 import '../stores/transactions_store.dart';
 import '../stores/recurring_store.dart';
@@ -30,6 +31,7 @@ class _AccountEditDialogState extends State<AccountEditDialog> {
   String _name = '';
   String _type = 'checking';
   String _balanceText = '0';
+  bool _isEmergencyFund = false;
   bool _initialized = false;
 
   @override
@@ -51,6 +53,7 @@ class _AccountEditDialogState extends State<AccountEditDialog> {
       _name = account?.name ?? '';
       _type = account?.type ?? 'checking';
       _balanceText = account != null ? account.balance.toString() : '0';
+      _isEmergencyFund = account?.isEmergencyFund ?? false;
       _initialized = true;
     }
 
@@ -58,9 +61,9 @@ class _AccountEditDialogState extends State<AccountEditDialog> {
       final balance = double.tryParse(_balanceText);
       if (_name.isEmpty || balance == null) return;
       if (isNew) {
-        accountsStore.addAccount(name: _name, type: _type, balance: balance);
+        accountsStore.addAccount(name: _name, type: _type, balance: balance, isEmergencyFund: _isEmergencyFund);
       } else if (account != null) {
-        accountsStore.updateAccount(account.id, name: _name, type: _type, balance: balance);
+        accountsStore.updateAccount(account.id, name: _name, type: _type, balance: balance, isEmergencyFund: _isEmergencyFund);
       }
       Navigator.of(context).pop();
     }
@@ -112,6 +115,13 @@ class _AccountEditDialogState extends State<AccountEditDialog> {
           AppSegmentedControl<String>(options: _accountTypes, value: _type, onChanged: (v) => setState(() => _type = v)),
           const SizedBox(height: AppSpacing.md),
           AppFormField(label: 'Balance (J\$)', value: _balanceText, onChanged: (v) => setState(() => _balanceText = v), keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              const Expanded(child: Text('Emergency fund', style: TextStyle(color: AppColors.text))),
+              AppToggle(value: _isEmergencyFund, onChanged: (v) => setState(() => _isEmergencyFund = v)),
+            ],
+          ),
           const SizedBox(height: AppSpacing.xl),
           AppButton(label: 'Save', onPressed: (_name.isNotEmpty && _balanceText.isNotEmpty) ? handleSave : null),
           if (!isNew && account != null) ...[

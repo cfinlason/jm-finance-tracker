@@ -46,6 +46,7 @@ class AccountsManagementScreen extends StatelessWidget {
                         icon: const Icon(LucideIcons.wallet, size: 16, color: AppColors.textSecondary),
                         title: accounts[i].name,
                         caption: accounts[i].type,
+                        badge: accounts[i].isEmergencyFund ? 'Emergency fund' : null,
                         amount: accounts[i].balance,
                         isLast: i == accounts.length - 1,
                         onTap: () => showDialog(context: context, builder: (_) => AccountEditDialog(id: accounts[i].id)),

@@ -5,6 +5,7 @@ import '../models/models.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/app_form_field.dart';
 import '../widgets/app_button.dart';
+import '../widgets/app_toggle.dart';
 import '../stores/debts_store.dart';
 import '../stores/recurring_store.dart';
 import '../stores/accounts_store.dart';
@@ -25,6 +26,7 @@ class _DebtEditDialogState extends State<DebtEditDialog> {
   String _rateText = '';
   String _minPaymentText = '';
   String _dueDayText = '1';
+  bool _isMortgage = false;
   bool _initialized = false;
 
   @override
@@ -48,6 +50,7 @@ class _DebtEditDialogState extends State<DebtEditDialog> {
       _rateText = debt != null ? debt.interestRate.toString() : '';
       _minPaymentText = debt != null ? debt.minPayment.toString() : '';
       _dueDayText = debt != null ? debt.dueDayOfMonth.toString() : '1';
+      _isMortgage = debt?.isMortgage ?? false;
       _initialized = true;
     }
 
@@ -65,7 +68,7 @@ class _DebtEditDialogState extends State<DebtEditDialog> {
       final dueDay = int.tryParse(_dueDayText);
       if (_name.isEmpty || balance == null || interestRate == null || minPayment == null || dueDay == null || dueDay < 1 || dueDay > 31) return;
       if (isNew) {
-        actions.createDebtWithRecurring(name: _name, balance: balance, interestRate: interestRate, minPayment: minPayment, dueDayOfMonth: dueDay);
+        actions.createDebtWithRecurring(name: _name, balance: balance, interestRate: interestRate, minPayment: minPayment, dueDayOfMonth: dueDay, isMortgage: _isMortgage);
       } else if (debt != null) {
         actions.updateDebtWithRecurring(
           debt.id,
@@ -75,6 +78,7 @@ class _DebtEditDialogState extends State<DebtEditDialog> {
           minPayment: minPayment,
           dueDayOfMonth: dueDay,
           existingRecurringRuleId: debt.recurringRuleId,
+          isMortgage: _isMortgage,
         );
       }
       Navigator.of(context).pop();
@@ -137,6 +141,13 @@ class _DebtEditDialogState extends State<DebtEditDialog> {
           const Text(
             'This is added as a recurring bill automatically — no need to add it separately.',
             style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              const Expanded(child: Text('Mortgage / house loan', style: TextStyle(color: AppColors.text))),
+              AppToggle(value: _isMortgage, onChanged: (v) => setState(() => _isMortgage = v)),
+            ],
           ),
           const SizedBox(height: AppSpacing.xl),
           AppButton(label: 'Save', onPressed: isValid ? handleSave : null),
