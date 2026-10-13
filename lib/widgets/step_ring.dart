@@ -30,21 +30,40 @@ class StepRing extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: size,
-      height: size,
-      child: CustomPaint(
-        painter: _StepRingPainter(steps),
-        child: Center(
-          child: Padding(
-            padding: EdgeInsets.all(size * 0.18),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(centerTitle, textAlign: TextAlign.center, style: AppTypography.sectionStat),
-                const SizedBox(height: AppSpacing.xs),
-                Text(centerSubtitle, textAlign: TextAlign.center, style: AppTypography.caption),
-              ],
+    return Semantics(
+      label: '$centerTitle, $centerSubtitle',
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(
+          painter: _StepRingPainter(steps),
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.all(size * 0.18),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: size * 0.64),
+                      child: Text(
+                        centerTitle,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.sectionStat,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      centerSubtitle,
+                      textAlign: TextAlign.center,
+                      style: AppTypography.caption,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -71,7 +90,7 @@ class _StepRingPainter extends CustomPainter {
     final capAngle = (stroke / 2) / (rect.width / 2);
     final gap = capAngle * 2 + 0.07;
     final len = seg - gap;
-    if (len <= 0) return;
+    if (!(len > 0)) return;
 
     Paint paintFor(Color c) => Paint()
       ..style = PaintingStyle.stroke
@@ -102,7 +121,9 @@ class _StepRingPainter extends CustomPainter {
     if (old.steps.length != steps.length) return true;
     for (var i = 0; i < steps.length; i++) {
       final a = old.steps[i], b = steps[i];
-      if (a.step != b.step || a.state != b.state || a.progress != b.progress) return true;
+      if (a.step != b.step || a.state != b.state || a.progress != b.progress) {
+        return true;
+      }
     }
     return false;
   }

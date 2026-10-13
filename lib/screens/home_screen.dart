@@ -70,12 +70,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Raise the step-2 baseline when consumer debt grows past it (post-frame, once per value).
     final nonMortgageDebtTotal = debts.where((d) => !d.isMortgage).fold<double>(0, (s, d) => s + d.balance);
-    if (nonMortgageDebtTotal > settings.step2StartTotal && _baselineRequested != nonMortgageDebtTotal) {
+    final needsRaise = nonMortgageDebtTotal > settings.step2StartTotal;
+    final needsReset = nonMortgageDebtTotal == 0 && settings.step2StartTotal > 0;
+    if ((needsRaise || needsReset) && _baselineRequested != nonMortgageDebtTotal) {
       _baselineRequested = nonMortgageDebtTotal;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         final store = context.read<SettingsStore>();
-        if (nonMortgageDebtTotal > store.settings.step2StartTotal) store.raiseStep2Baseline(nonMortgageDebtTotal);
+        if (nonMortgageDebtTotal > store.settings.step2StartTotal) {
+          store.raiseStep2Baseline(nonMortgageDebtTotal);
+        } else if (nonMortgageDebtTotal == 0) {
+          store.resetStep2Baseline();
+        }
       });
     }
 
@@ -164,7 +170,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: AppSpacing.xl),
                   stepCards,
-                  const SizedBox(height: AppSpacing.xl),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -183,7 +188,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   netWorthCard,
                   const SizedBox(height: AppSpacing.xl),
                   stepCards,
-                  const SizedBox(height: AppSpacing.md),
                   if (accounts.isNotEmpty) ...[
                     _AccountsSidebar(accounts: accounts, horizontal: true),
                     const SizedBox(height: AppSpacing.xl),
@@ -258,7 +262,7 @@ class _RecentTransactionsSection extends StatelessWidget {
 }
 
 /// Always-visible list of accounts and their balances. On Expanded it renders
-/// as a narrow vertical column beside the hero section ("on the side"); on
+/// as a narrow vertical column beside the net worth card ("on the side"); on
 /// Compact it renders as a horizontally-scrollable strip so it doesn't push
 /// the rest of the dashboard down. While the Add Transaction dialog has an
 /// account and a valid amount selected, that account's card shows a live

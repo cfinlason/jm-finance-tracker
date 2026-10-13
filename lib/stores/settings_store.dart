@@ -105,6 +105,13 @@ class SettingsStore extends ChangeNotifier {
     _persist({'step2_start_total': currentTotal});
   }
 
+  void resetStep2Baseline() {
+    if (_settings.step2StartTotal == 0) return;
+    _settings = _settings.copyWith(step2StartTotal: 0);
+    notifyListeners();
+    _persist({'step2_start_total': 0});
+  }
+
   void setCachedRate(double rate, DateTime at) {
     final iso = at.toIso8601String();
     _settings = _settings.copyWith(cachedUsdJmdRate: rate, rateUpdatedAt: iso);

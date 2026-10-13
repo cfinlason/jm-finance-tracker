@@ -22,6 +22,13 @@ void main() {
     expect(s.settings.step2StartTotal, 500);
   });
 
+  test('resetStep2Baseline sets baseline to 0', () {
+    final s = make();
+    s.raiseStep2Baseline(500);
+    s.resetStep2Baseline();
+    expect(s.settings.step2StartTotal, 0);
+  });
+
   test('setStepCompleted toggles', () {
     final s = make();
     s.setStepCompleted(4, true);

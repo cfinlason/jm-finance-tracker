@@ -27,7 +27,7 @@ class AppColors {
   static const stepYellow = Color(0xFFFFB92E);
   static const stepGreen = Color(0xFF7DD87F);
   static const stepRed = Color(0xFFFF4D4D);
-  static const surfaceMuted =Color(0x0FFFFFFF); // rgba(255,255,255,0.06)
+  static const surfaceMuted = Color(0x0FFFFFFF); // rgba(255,255,255,0.06)
   static const text = Color(0xFFF4F5F0);
   static const textSecondary = Color(0xFFC7C9C2);
   static const textMuted = Color(0xFF8B8D86);

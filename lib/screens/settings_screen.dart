@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
@@ -21,6 +22,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _starterText = '';
   String _goalText = '';
   bool _initialized = false;
+  late final SettingsStore _store;
+  Timer? _starterTimer;
+  Timer? _goalTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _store = context.read<SettingsStore>();
+  }
+
+  @override
+  void dispose() {
+    final starterPending = _starterTimer?.isActive ?? false;
+    final goalPending = _goalTimer?.isActive ?? false;
+    _starterTimer?.cancel();
+    _goalTimer?.cancel();
+    if (starterPending) _commitStarter();
+    if (goalPending) _commitGoal();
+    super.dispose();
+  }
+
+  void _commitStarter() {
+    final n = _parsePositive(_starterText);
+    if (n != null) _store.setStarterFundUsd(n);
+  }
+
+  void _commitGoal() {
+    final n = _parsePositive(_goalText);
+    if (n != null) _store.setNetWorthGoalUsd(n);
+  }
 
   static double? _parsePositive(String t) {
     final v = double.tryParse(t.trim());
@@ -68,7 +99,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             const Text('Settings', style: TextStyle(color: AppColors.text, fontSize: 24, fontWeight: FontWeight.w700)),
             const SizedBox(height: AppSpacing.sm),
-            const Text('Update your estimated monthly income used for Safe to Spend.', style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+            const Text('Income, Baby Steps targets and exchange rate.', style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
             const SizedBox(height: AppSpacing.xl),
             AppFormField(
               label: 'Monthly income (J\$)',
@@ -85,8 +116,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               value: _starterText,
               onChanged: (v) {
                 setState(() => _starterText = v);
-                final n = _parsePositive(v);
-                if (n != null) context.read<SettingsStore>().setStarterFundUsd(n);
+                _starterTimer?.cancel();
+                _starterTimer = Timer(const Duration(milliseconds: 500), _commitStarter);
               },
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               placeholder: '1000',
@@ -106,8 +137,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               value: _goalText,
               onChanged: (v) {
                 setState(() => _goalText = v);
-                final n = _parsePositive(v);
-                if (n != null) context.read<SettingsStore>().setNetWorthGoalUsd(n);
+                _goalTimer?.cancel();
+                _goalTimer = Timer(const Duration(milliseconds: 500), _commitGoal);
               },
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               placeholder: '1000000',

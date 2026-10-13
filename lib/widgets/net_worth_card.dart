@@ -21,7 +21,8 @@ class NetWorthCard extends StatelessWidget {
     this.rateFailed = false,
   });
 
-  static String _date(DateTime d) {
+  static String _date(DateTime t) {
+    final d = t.toLocal();
     const m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return '${m[d.month - 1]} ${d.day}, ${d.year}';
   }
@@ -49,9 +50,9 @@ class NetWorthCard extends StatelessWidget {
             Text('$pct% of $goalText', style: AppTypography.body.copyWith(color: AppColors.textSecondary)),
             const SizedBox(height: AppSpacing.sm),
             Text(formatMoney(netWorth.jmd), style: AppTypography.body.copyWith(color: AppColors.textSecondary)),
-            if (rateFailed && rateUpdatedAt != null) ...[
+            if (rateFailed) ...[
               const SizedBox(height: AppSpacing.sm),
-              Text('Using saved rate from ${_date(rateUpdatedAt!)}', style: warn),
+              Text(rateUpdatedAt == null ? 'Using saved rate' : 'Using saved rate from ${_date(rateUpdatedAt!)}', style: warn),
             ],
           ] else ...[
             Text(formatMoney(netWorth.jmd), style: AppTypography.sectionStat),
