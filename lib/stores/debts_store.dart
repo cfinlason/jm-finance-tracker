@@ -58,9 +58,10 @@ class DebtsStore extends ChangeNotifier {
     required double interestRate,
     required double minPayment,
     required int dueDayOfMonth,
+    bool isMortgage = false,
   }) {
     final id = generateId();
-    final debt = Debt(id: id, name: name, balance: balance, interestRate: interestRate, minPayment: minPayment, dueDayOfMonth: dueDayOfMonth);
+    final debt = Debt(id: id, name: name, balance: balance, interestRate: interestRate, minPayment: minPayment, dueDayOfMonth: dueDayOfMonth, isMortgage: isMortgage);
     _debts = [..._debts, debt];
     notifyListeners();
     _insert(debt);
@@ -75,6 +76,7 @@ class DebtsStore extends ChangeNotifier {
     double? minPayment,
     int? dueDayOfMonth,
     String? recurringRuleId,
+    bool? isMortgage,
   }) {
     _debts = _debts
         .map((d) => d.id == id
@@ -85,6 +87,7 @@ class DebtsStore extends ChangeNotifier {
                 minPayment: minPayment,
                 dueDayOfMonth: dueDayOfMonth,
                 recurringRuleId: recurringRuleId,
+                isMortgage: isMortgage,
               )
             : d)
         .toList();
@@ -96,6 +99,7 @@ class DebtsStore extends ChangeNotifier {
       'min_payment': ?minPayment,
       'due_day_of_month': ?dueDayOfMonth,
       'recurring_rule_id': ?recurringRuleId,
+      'is_mortgage': ?isMortgage,
     });
   }
 

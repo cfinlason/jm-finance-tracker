@@ -32,8 +32,9 @@ class DebtActions {
     required double interestRate,
     required double minPayment,
     required int dueDayOfMonth,
+    bool isMortgage = false,
   }) {
-    final debtId = debtsStore.addDebt(name: name, balance: balance, interestRate: interestRate, minPayment: minPayment, dueDayOfMonth: dueDayOfMonth);
+    final debtId = debtsStore.addDebt(name: name, balance: balance, interestRate: interestRate, minPayment: minPayment, dueDayOfMonth: dueDayOfMonth, isMortgage: isMortgage);
     final ruleId = _upsertRecurringRule(existingRuleId: null, name: name, amount: minPayment, dueDayOfMonth: dueDayOfMonth);
     if (ruleId != null) {
       debtsStore.updateDebt(debtId, recurringRuleId: ruleId);
@@ -52,6 +53,7 @@ class DebtActions {
     required double minPayment,
     required int dueDayOfMonth,
     required String? existingRecurringRuleId,
+    bool? isMortgage,
   }) {
     debtsStore.updateDebt(
       debtId,
@@ -60,6 +62,7 @@ class DebtActions {
       interestRate: interestRate,
       minPayment: minPayment,
       dueDayOfMonth: dueDayOfMonth,
+      isMortgage: isMortgage,
     );
     final ruleId = _upsertRecurringRule(existingRuleId: existingRecurringRuleId, name: name, amount: minPayment, dueDayOfMonth: dueDayOfMonth);
     if (ruleId != null && ruleId != existingRecurringRuleId) {

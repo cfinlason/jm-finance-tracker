@@ -57,22 +57,23 @@ class AccountsStore extends ChangeNotifier {
     }
   }
 
-  String addAccount({required String name, required String type, required double balance}) {
+  String addAccount({required String name, required String type, required double balance, bool isEmergencyFund = false}) {
     final id = generateId();
-    final account = Account(id: id, name: name, type: type, balance: balance, createdAt: DateTime.now().toIso8601String());
+    final account = Account(id: id, name: name, type: type, balance: balance, isEmergencyFund: isEmergencyFund, createdAt: DateTime.now().toIso8601String());
     _accounts = [..._accounts, account];
     notifyListeners();
     _insert(account);
     return id;
   }
 
-  void updateAccount(String id, {String? name, String? type, double? balance}) {
-    _accounts = _accounts.map((a) => a.id == id ? a.copyWith(name: name, type: type, balance: balance) : a).toList();
+  void updateAccount(String id, {String? name, String? type, double? balance, bool? isEmergencyFund}) {
+    _accounts = _accounts.map((a) => a.id == id ? a.copyWith(name: name, type: type, balance: balance, isEmergencyFund: isEmergencyFund) : a).toList();
     notifyListeners();
     _update(id, {
       'name': ?name,
       'type': ?type,
       'balance': ?balance,
+      'is_emergency_fund': ?isEmergencyFund,
     });
   }
 

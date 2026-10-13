@@ -59,4 +59,56 @@ class SettingsStore extends ChangeNotifier {
     notifyListeners();
     _persist({'monthly_income_estimate': value});
   }
+
+  void setStarterFundUsd(double value) {
+    _settings = _settings.copyWith(starterFundUsd: value);
+    notifyListeners();
+    _persist({'starter_fund_usd': value});
+  }
+
+  void setEmergencyMonths(int months) {
+    final v = months.clamp(3, 6).toInt();
+    _settings = _settings.copyWith(emergencyMonths: v);
+    notifyListeners();
+    _persist({'emergency_months': v});
+  }
+
+  void setNetWorthGoalUsd(double value) {
+    _settings = _settings.copyWith(netWorthGoalUsd: value);
+    notifyListeners();
+    _persist({'net_worth_goal_usd': value});
+  }
+
+  void setStepCompleted(int step, bool done) {
+    final m = {..._settings.stepsCompleted, step: done};
+    _settings = _settings.copyWith(stepsCompleted: m);
+    notifyListeners();
+    _persist({'steps_completed': {for (final e in m.entries) e.key.toString(): e.value}});
+  }
+
+  void setStepAmount(int step, double? amount) {
+    final m = {..._settings.stepAmounts};
+    if (amount == null) {
+      m.remove(step);
+    } else {
+      m[step] = amount;
+    }
+    _settings = _settings.copyWith(stepAmounts: m);
+    notifyListeners();
+    _persist({'step_amounts': {for (final e in m.entries) e.key.toString(): e.value}});
+  }
+
+  void raiseStep2Baseline(double currentTotal) {
+    if (currentTotal <= _settings.step2StartTotal) return;
+    _settings = _settings.copyWith(step2StartTotal: currentTotal);
+    notifyListeners();
+    _persist({'step2_start_total': currentTotal});
+  }
+
+  void setCachedRate(double rate, DateTime at) {
+    final iso = at.toIso8601String();
+    _settings = _settings.copyWith(cachedUsdJmdRate: rate, rateUpdatedAt: iso);
+    notifyListeners();
+    _persist({'cached_usd_jmd_rate': rate, 'rate_updated_at': iso});
+  }
 }
