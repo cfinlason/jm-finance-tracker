@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide StepState;
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -8,37 +8,83 @@ import '../models/models.dart';
 import '../widgets/app_screen.dart';
 import '../widgets/content_bounds.dart';
 import '../widgets/app_card.dart';
-import '../widgets/stat_figure.dart';
+import '../widgets/app_segmented_control.dart';
+import '../widgets/step_ring.dart';
+import '../widgets/step_card.dart';
+import '../widgets/net_worth_card.dart';
 import '../widgets/list_row.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/icon_chip.dart';
 import '../widgets/category_icon.dart';
 import '../widgets/month_calendar.dart';
 import '../utils/money.dart';
-import '../logic/safe_to_spend.dart';
+import '../logic/baby_steps.dart';
+import '../logic/net_worth.dart';
+import '../logic/spending_period.dart';
 import '../logic/bill_calendar.dart';
 import '../stores/accounts_store.dart';
+import '../stores/debts_store.dart';
+import '../stores/settings_store.dart';
+import '../stores/exchange_rate_store.dart';
 import '../stores/recurring_store.dart';
 import '../stores/transactions_store.dart';
 import '../stores/categories_store.dart';
 import '../stores/transaction_preview_store.dart';
 import 'transaction_edit_dialog.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  SpendingPeriod _period = SpendingPeriod.month;
+  double? _baselineRequested;
+
+  static const _periodLabels = {SpendingPeriod.week: 'week', SpendingPeriod.month: 'month', SpendingPeriod.year: 'year'};
 
   @override
   Widget build(BuildContext context) {
     final accounts = context.watch<AccountsStore>().accounts;
+    final debts = context.watch<DebtsStore>().debts;
     final recurringRules = context.watch<RecurringStore>().rules;
     final transactions = context.watch<TransactionsStore>().transactions;
     final categories = context.watch<CategoriesStore>().categories;
+    final settingsStore = context.watch<SettingsStore>();
+    final settings = settingsStore.settings;
+    final rateStore = context.watch<ExchangeRateStore>();
+    final now = DateTime.now();
 
-    final safeToSpend = calculateSafeToSpend(accounts, recurringRules);
+    final monthlyExpenses = estimateMonthlyExpenses(rules: recurringRules, transactions: transactions, now: now);
+    final netWorth = computeNetWorth(accounts: accounts, debts: debts, usdToJmdRate: rateStore.rate, goalUsd: settings.netWorthGoalUsd);
+    final steps = computeBabySteps(
+      accounts: accounts,
+      debts: debts,
+      settings: settings,
+      monthlyExpenses: monthlyExpenses,
+      usdToJmdRate: rateStore.rate,
+      netWorth: netWorth,
+    );
+
+    // Raise the step-2 baseline when consumer debt grows past it (post-frame, once per value).
+    final nonMortgageDebtTotal = debts.where((d) => !d.isMortgage).fold<double>(0, (s, d) => s + d.balance);
+    if (nonMortgageDebtTotal > settings.step2StartTotal && _baselineRequested != nonMortgageDebtTotal) {
+      _baselineRequested = nonMortgageDebtTotal;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final store = context.read<SettingsStore>();
+        if (nonMortgageDebtTotal > store.settings.step2StartTotal) store.raiseStep2Baseline(nonMortgageDebtTotal);
+      });
+    }
+
+    final current = steps.where((s) => s.state == StepState.current).firstOrNull;
+    final ringTitle = current == null ? 'All steps done' : 'Step ${current.step}: ${current.title}';
+    final ringProgress = current == null ? 100 : (current.progress.clamp(0.0, 1.0) * 100).round();
+    final spent = spendingInPeriod(transactions, _period, now);
+
     final recentTop5 = ([...transactions]..sort((a, b) => b.date.compareTo(a.date))).take(5).toList();
-    final monthIncome = transactions.where((t) => t.type == 'income').fold<double>(0, (s, t) => s + t.amount);
-    final monthSpending = transactions.where((t) => t.type == 'expense').fold<double>(0, (s, t) => s + t.amount.abs());
-    final upcoming = recurringRules.fold<double>(0, (s, r) => s + r.amount);
 
     Category? categoryFor(String id) {
       for (final c in categories) {
@@ -47,7 +93,49 @@ class HomeScreen extends StatelessWidget {
       return null;
     }
 
-    final heroSection = _HeroSection(safeToSpend: safeToSpend, monthIncome: monthIncome, monthSpending: monthSpending, upcoming: upcoming);
+    final ringSection = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Center(child: StepRing(steps: steps, centerTitle: ringTitle, centerSubtitle: '$ringProgress% complete')),
+        const SizedBox(height: AppSpacing.xl),
+        AppSegmentedControl<SpendingPeriod>(
+          options: const [
+            SegmentOption(label: 'Week', value: SpendingPeriod.week),
+            SegmentOption(label: 'Month', value: SpendingPeriod.month),
+            SegmentOption(label: 'Year', value: SpendingPeriod.year),
+          ],
+          value: _period,
+          onChanged: (p) => setState(() => _period = p),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text('Spent this ${_periodLabels[_period]}: ${formatMoney(spent)}', textAlign: TextAlign.center, style: AppTypography.bodyStrong),
+        const SizedBox(height: AppSpacing.xl),
+        const _QuickActions(),
+      ],
+    );
+    final netWorthCard = NetWorthCard(
+      netWorth: netWorth,
+      goalUsd: settings.netWorthGoalUsd,
+      rate: rateStore.rate,
+      rateUpdatedAt: rateStore.updatedAt,
+      rateFailed: rateStore.refreshFailed,
+    );
+    final stepCards = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final s in steps)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            child: StepCard(
+              key: ValueKey('step-${s.step}'),
+              status: s,
+              amount: settings.stepAmounts[s.step],
+              onToggleDone: s.isManual ? () => settingsStore.setStepCompleted(s.step, s.state != StepState.done) : null,
+              onAmountChanged: s.isManual ? (v) => settingsStore.setStepAmount(s.step, v) : null,
+            ),
+          ),
+      ],
+    );
     final recentSection = _RecentTransactionsSection(recentTop5: recentTop5, categoryFor: categoryFor);
     const billsSection = _BillsCalendarSection();
 
@@ -57,16 +145,25 @@ class HomeScreen extends StatelessWidget {
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  IntrinsicHeight(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: heroSection),
-                        const SizedBox(width: AppSpacing.xl),
-                        SizedBox(width: 260, child: _AccountsSidebar(accounts: accounts, horizontal: false)),
-                      ],
-                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: ringSection),
+                      const SizedBox(width: AppSpacing.xl),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            netWorthCard,
+                            const SizedBox(height: AppSpacing.xl),
+                            _AccountsSidebar(accounts: accounts, horizontal: false),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: AppSpacing.xl),
+                  stepCards,
                   const SizedBox(height: AppSpacing.xl),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -79,16 +176,21 @@ class HomeScreen extends StatelessWidget {
                 ],
               )
             : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  heroSection,
+                  ringSection,
+                  const SizedBox(height: AppSpacing.xl),
+                  netWorthCard,
+                  const SizedBox(height: AppSpacing.xl),
+                  stepCards,
+                  const SizedBox(height: AppSpacing.md),
                   if (accounts.isNotEmpty) ...[
                     _AccountsSidebar(accounts: accounts, horizontal: true),
                     const SizedBox(height: AppSpacing.xl),
                   ],
-                  recentSection,
-                  const SizedBox(height: AppSpacing.xl),
                   billsSection,
+                  const SizedBox(height: AppSpacing.xl),
+                  recentSection,
                 ],
               ),
       ),
@@ -96,55 +198,20 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class _HeroSection extends StatelessWidget {
-  final double safeToSpend;
-  final double monthIncome;
-  final double monthSpending;
-  final double upcoming;
-
-  const _HeroSection({required this.safeToSpend, required this.monthIncome, required this.monthSpending, required this.upcoming});
+class _QuickActions extends StatelessWidget {
+  const _QuickActions();
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        AppCard(
-          emphasis: true,
-          margin: const EdgeInsets.only(bottom: AppSpacing.xl),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('SAFE TO SPEND', style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.1)),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                formatMoney(safeToSpend),
-                style: const TextStyle(color: AppColors.text, fontSize: 60, fontWeight: FontWeight.w800, fontFeatures: [FontFeature.tabularFigures()]),
-              ),
-            ],
-          ),
-        ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            StatFigure(label: 'Income', amount: monthIncome, tone: StatTone.positive),
-            StatFigure(label: 'Spending', amount: monthSpending),
-            StatFigure(label: 'Upcoming', amount: upcoming),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.xl),
-        Container(
-          decoration: BoxDecoration(border: Border.all(color: AppColors.border), borderRadius: BorderRadius.circular(14)),
-          margin: const EdgeInsets.only(bottom: AppSpacing.xl),
-          child: Row(
-            children: [
-              Expanded(child: _QuickAction(icon: LucideIcons.plus, label: 'Add Transaction', onTap: () => showDialog(context: context, builder: (_) => const TransactionEditDialog(id: 'new')))),
-              Expanded(child: _QuickAction(icon: LucideIcons.creditCard, label: 'View Debt', onTap: () => context.push('/debts'))),
-              Expanded(child: _QuickAction(icon: LucideIcons.trendingUp, label: 'Cash Flow', onTap: () => context.push('/cash-flow'))),
-            ],
-          ),
-        ),
-      ],
+    return Container(
+      decoration: BoxDecoration(color: AppColors.surface, border: Border.all(color: AppColors.border), borderRadius: BorderRadius.circular(14)),
+      child: Row(
+        children: [
+          Expanded(child: _QuickAction(icon: LucideIcons.plus, label: 'Add Transaction', onTap: () => showDialog(context: context, builder: (_) => const TransactionEditDialog(id: 'new')))),
+          Expanded(child: _QuickAction(icon: LucideIcons.creditCard, label: 'View Debt', onTap: () => context.push('/debts'))),
+          Expanded(child: _QuickAction(icon: LucideIcons.trendingUp, label: 'Cash Flow', onTap: () => context.push('/cash-flow'))),
+        ],
+      ),
     );
   }
 }
