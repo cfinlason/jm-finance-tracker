@@ -12,7 +12,7 @@ Future<double> _defaultFetcher() async {
   }
   final body = jsonDecode(res.body) as Map<String, dynamic>;
   final jmd = (body['rates'] as Map<String, dynamic>?)?['JMD'];
-  if (jmd is! num) throw Exception('JMD rate missing');
+  if (jmd is! num || !jmd.isFinite || jmd <= 0) throw Exception('JMD rate missing');
   return jmd.toDouble();
 }
 
@@ -42,10 +42,12 @@ class ExchangeRateStore extends ChangeNotifier {
   }
 
   Future<void> refresh() async {
+    if (_isLoading) return;
     _isLoading = true;
     notifyListeners();
     try {
       final r = await _fetcher();
+      if (!r.isFinite || r <= 0) throw Exception('Invalid rate: $r');
       final now = DateTime.now().toUtc();
       _rate = r;
       _updatedAt = now;

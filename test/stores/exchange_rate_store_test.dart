@@ -46,4 +46,27 @@ void main() {
     expect(store.rate, 155.5);
     expect(store.updatedAt, isNotNull);
   });
+
+  for (final bad in [0.0, double.nan, -3.0]) {
+    test('refresh rejects invalid rate $bad', () async {
+      final s = makeSettings();
+      final store = ExchangeRateStore(s, fetcher: () async => bad);
+      await store.refresh();
+      expect(store.rate, isNull);
+      expect(store.refreshFailed, true);
+      expect(s.settings.cachedUsdJmdRate, isNull);
+    });
+  }
+
+  test('overlapping refresh calls fetch once', () async {
+    var calls = 0;
+    final store = ExchangeRateStore(makeSettings(), fetcher: () async {
+      calls++;
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      return 157.0;
+    });
+    await Future.wait([store.refresh(), store.refresh()]);
+    expect(calls, 1);
+    expect(store.rate, 157.0);
+  });
 }
