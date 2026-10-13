@@ -19,4 +19,9 @@ void main() {
       expect(formatMoney(1234567.89), 'J\$1,234,567.89');
     });
   });
+
+  group('formatUsd', () {
+    test('formats positive', () => expect(formatUsd(1234.5), 'US\$1,234.50'));
+    test('formats negative', () => expect(formatUsd(-5), '-US\$5.00'));
+  });
 }

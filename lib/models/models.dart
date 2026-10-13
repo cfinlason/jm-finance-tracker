@@ -5,6 +5,7 @@ class Account {
   final double balance; // JMD, signed
   final String currency; // always 'JMD'
   final String createdAt; // ISO 8601
+  final bool isEmergencyFund;
 
   Account({
     required this.id,
@@ -13,15 +14,17 @@ class Account {
     required this.balance,
     this.currency = 'JMD',
     required this.createdAt,
+    this.isEmergencyFund = false,
   });
 
-  Account copyWith({String? name, String? type, double? balance}) => Account(
+  Account copyWith({String? name, String? type, double? balance, bool? isEmergencyFund}) => Account(
         id: id,
         name: name ?? this.name,
         type: type ?? this.type,
         balance: balance ?? this.balance,
         currency: currency,
         createdAt: createdAt,
+        isEmergencyFund: isEmergencyFund ?? this.isEmergencyFund,
       );
 
   Map<String, dynamic> toJson() => {'id': id, 'name': name, 'type': type, 'balance': balance, 'currency': currency, 'createdAt': createdAt};
@@ -35,7 +38,7 @@ class Account {
         createdAt: json['createdAt'] as String,
       );
 
-  Map<String, dynamic> toSupabaseInsert() => {'id': id, 'name': name, 'type': type, 'balance': balance, 'currency': currency};
+  Map<String, dynamic> toSupabaseInsert() => {'id': id, 'name': name, 'type': type, 'balance': balance, 'currency': currency, 'is_emergency_fund': isEmergencyFund};
 
   factory Account.fromSupabaseRow(Map<String, dynamic> row) => Account(
         id: row['id'] as String,
@@ -44,6 +47,7 @@ class Account {
         balance: (row['balance'] as num).toDouble(),
         currency: row['currency'] as String? ?? 'JMD',
         createdAt: row['created_at'] as String,
+        isEmergencyFund: row['is_emergency_fund'] as bool? ?? false,
       );
 }
 
@@ -306,6 +310,7 @@ class Debt {
   // predate this linkage, or if a recurring bill couldn't be created (e.g.
   // no accounts/categories exist yet).
   final String? recurringRuleId;
+  final bool isMortgage;
 
   Debt({
     required this.id,
@@ -315,6 +320,7 @@ class Debt {
     required this.minPayment,
     required this.dueDayOfMonth,
     this.recurringRuleId,
+    this.isMortgage = false,
   });
 
   Debt copyWith({
@@ -325,6 +331,7 @@ class Debt {
     int? dueDayOfMonth,
     String? recurringRuleId,
     bool clearRecurringRuleId = false,
+    bool? isMortgage,
   }) =>
       Debt(
         id: id,
@@ -334,6 +341,7 @@ class Debt {
         minPayment: minPayment ?? this.minPayment,
         dueDayOfMonth: dueDayOfMonth ?? this.dueDayOfMonth,
         recurringRuleId: clearRecurringRuleId ? null : (recurringRuleId ?? this.recurringRuleId),
+        isMortgage: isMortgage ?? this.isMortgage,
       );
 
   Map<String, dynamic> toJson() => {
@@ -364,6 +372,7 @@ class Debt {
         'min_payment': minPayment,
         'due_day_of_month': dueDayOfMonth,
         'recurring_rule_id': recurringRuleId,
+        'is_mortgage': isMortgage,
       };
 
   factory Debt.fromSupabaseRow(Map<String, dynamic> row) => Debt(
@@ -374,6 +383,7 @@ class Debt {
         minPayment: (row['min_payment'] as num).toDouble(),
         dueDayOfMonth: row['due_day_of_month'] as int,
         recurringRuleId: row['recurring_rule_id'] as String?,
+        isMortgage: row['is_mortgage'] as bool? ?? false,
       );
 }
 
@@ -381,13 +391,53 @@ class UserSettings {
   final bool hasCompletedOnboarding;
   final double monthlyIncomeEstimate;
   final String currency; // fixed 'JMD' for v1
+  final double starterFundUsd;
+  final int emergencyMonths;
+  final double netWorthGoalUsd;
+  final Map<int, bool> stepsCompleted;
+  final Map<int, double> stepAmounts;
+  final double step2StartTotal;
+  final double? cachedUsdJmdRate;
+  final String? rateUpdatedAt;
 
-  UserSettings({this.hasCompletedOnboarding = false, this.monthlyIncomeEstimate = 0, this.currency = 'JMD'});
+  UserSettings({
+    this.hasCompletedOnboarding = false,
+    this.monthlyIncomeEstimate = 0,
+    this.currency = 'JMD',
+    this.starterFundUsd = 1000,
+    this.emergencyMonths = 3,
+    this.netWorthGoalUsd = 1000000,
+    this.stepsCompleted = const {},
+    this.stepAmounts = const {},
+    this.step2StartTotal = 0,
+    this.cachedUsdJmdRate,
+    this.rateUpdatedAt,
+  });
 
-  UserSettings copyWith({bool? hasCompletedOnboarding, double? monthlyIncomeEstimate}) => UserSettings(
+  UserSettings copyWith({
+    bool? hasCompletedOnboarding,
+    double? monthlyIncomeEstimate,
+    double? starterFundUsd,
+    int? emergencyMonths,
+    double? netWorthGoalUsd,
+    Map<int, bool>? stepsCompleted,
+    Map<int, double>? stepAmounts,
+    double? step2StartTotal,
+    double? cachedUsdJmdRate,
+    String? rateUpdatedAt,
+  }) =>
+      UserSettings(
         hasCompletedOnboarding: hasCompletedOnboarding ?? this.hasCompletedOnboarding,
         monthlyIncomeEstimate: monthlyIncomeEstimate ?? this.monthlyIncomeEstimate,
         currency: currency,
+        starterFundUsd: starterFundUsd ?? this.starterFundUsd,
+        emergencyMonths: emergencyMonths ?? this.emergencyMonths,
+        netWorthGoalUsd: netWorthGoalUsd ?? this.netWorthGoalUsd,
+        stepsCompleted: stepsCompleted ?? this.stepsCompleted,
+        stepAmounts: stepAmounts ?? this.stepAmounts,
+        step2StartTotal: step2StartTotal ?? this.step2StartTotal,
+        cachedUsdJmdRate: cachedUsdJmdRate ?? this.cachedUsdJmdRate,
+        rateUpdatedAt: rateUpdatedAt ?? this.rateUpdatedAt,
       );
 
   Map<String, dynamic> toJson() => {'hasCompletedOnboarding': hasCompletedOnboarding, 'monthlyIncomeEstimate': monthlyIncomeEstimate, 'currency': currency};
@@ -401,5 +451,18 @@ class UserSettings {
   factory UserSettings.fromSupabaseRow(Map<String, dynamic> row) => UserSettings(
         hasCompletedOnboarding: row['has_completed_onboarding'] as bool? ?? false,
         monthlyIncomeEstimate: (row['monthly_income_estimate'] as num?)?.toDouble() ?? 0,
+        starterFundUsd: (row['starter_fund_usd'] as num?)?.toDouble() ?? 1000,
+        emergencyMonths: (row['emergency_months'] as num?)?.toInt() ?? 3,
+        netWorthGoalUsd: (row['net_worth_goal_usd'] as num?)?.toDouble() ?? 1000000,
+        stepsCompleted: _intKeyMap<bool>(row['steps_completed'], (v) => v as bool),
+        stepAmounts: _intKeyMap<double>(row['step_amounts'], (v) => (v as num).toDouble()),
+        step2StartTotal: (row['step2_start_total'] as num?)?.toDouble() ?? 0,
+        cachedUsdJmdRate: (row['cached_usd_jmd_rate'] as num?)?.toDouble(),
+        rateUpdatedAt: row['rate_updated_at'] as String?,
       );
+}
+
+Map<int, T> _intKeyMap<T>(Object? raw, T Function(Object?) convert) {
+  if (raw is! Map) return <int, T>{};
+  return {for (final e in raw.entries) int.parse(e.key.toString()): convert(e.value)};
 }

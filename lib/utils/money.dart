@@ -7,6 +7,12 @@ String formatMoney(double amount) {
   return '${sign}J\$$withCommas.${parts[1]}';
 }
 
+String formatUsd(double amount) {
+  final sign = amount < 0 ? '-' : '';
+  final parts = amount.abs().toStringAsFixed(2).split('.');
+  return '${sign}US\$${_addThousandsSeparators(parts[0])}.${parts[1]}';
+}
+
 String _addThousandsSeparators(String intPart) {
   final reversed = intPart.split('').reversed.toList();
   final buffer = StringBuffer();
