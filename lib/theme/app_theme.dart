@@ -21,7 +21,13 @@ void _configureFontFetching() {
 class AppColors {
   static const bg = Color(0xFF101110);
   static const surface = Color(0xFF1B1D18);
-  static const surfaceMuted = Color(0x0FFFFFFF); // rgba(255,255,255,0.06)
+  static const surfaceCard = Color(0xFF17191A);
+  static const stepBlue = Color(0xFF4C7DFF);
+  static const stepPurple = Color(0xFF7B5CE6);
+  static const stepYellow = Color(0xFFFFB92E);
+  static const stepGreen = Color(0xFF7DD87F);
+  static const stepRed = Color(0xFFFF4D4D);
+  static const surfaceMuted =Color(0x0FFFFFFF); // rgba(255,255,255,0.06)
   static const text = Color(0xFFF4F5F0);
   static const textSecondary = Color(0xFFC7C9C2);
   static const textMuted = Color(0xFF8B8D86);
