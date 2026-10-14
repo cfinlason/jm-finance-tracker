@@ -124,7 +124,7 @@ export default function Paywall() {
           })}
           <Animated.View entering={FadeIn.delay(520)} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md }}>
             <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: p.accentSoft, alignItems: 'center', justifyContent: 'center' }}><BellRing size={22} color={p.accentStrong} /></View>
-            <Text variant="callout" tone="muted" style={{ flex: 1 }}>No bank logins, no ads, no data leaving your phone. Ever.</Text>
+            <Text variant="callout" tone="muted" style={{ flex: 1 }}>No bank logins, no ads. Your budget stays on your phone; only the optional AI debt coach sees the debt figures you choose to send.</Text>
           </Animated.View>
         </View>
       </ScrollView>

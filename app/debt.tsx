@@ -12,6 +12,7 @@ import { useStore } from '../src/data/store';
 import { monthLabel } from '../src/data/dates';
 import { money, moneyAuto } from '../src/data/format';
 import { payoffDate, simulatePayoff, sum } from '../src/data/selectors';
+import { DebtCoachCard } from '../src/features/DebtCoachCard';
 
 export default function Debt() {
   const p = useTheme();
@@ -71,6 +72,10 @@ export default function Debt() {
               </View>
               <Text variant="caption" tone="muted" align="center">On top of {moneyAuto(minTotal)} in minimums · {moneyAuto(total)} owed</Text>
             </Card>
+          </Reveal>
+
+          <Reveal index={3}>
+            <DebtCoachCard debts={live} extra={extra} onPickMethod={setMethod} />
           </Reveal>
 
           <Text variant="title">Payoff order</Text>

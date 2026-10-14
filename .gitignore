@@ -42,3 +42,9 @@ yarn-error.*
 
 .superpowers/
 .claude/worktrees/
+
+# secrets
+.env
+server/.env
+server/node_modules/
+.vercel/

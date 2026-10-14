@@ -7,10 +7,11 @@ const DOCS = {
   privacy: {
     title: 'Privacy policy',
     sections: [
-      ['The short version', 'Allot keeps everything on your device. There is no account, no server, and no analytics. We cannot see your budget because we never receive it.'],
+      ['The short version', 'Allot keeps everything on your device. There is no account, no server, and no analytics. We cannot see your budget because we never receive it, with one optional exception described below.'],
       ['What we store', 'Your budget, transactions, funds, debts, net worth entries and settings are saved in your phone’s local storage. Deleting the app, or using “Erase all data” in Settings, removes them for good.'],
       ['Notifications', 'Reminders are scheduled locally on your device. No push service is involved and nothing is sent to us.'],
       ['Purchases', 'Allot Plus is offered as an auto-renewing subscription handled by the App Store. In this build the purchase flow is a demonstration and no payment information is collected.'],
+      ['AI debt coach (optional)', 'If you tap “Map my fastest way out” in the debt roadmap, your debt balances, interest rates, minimum payments and the extra amount you chose are sent through our server to Claude, an AI model from Anthropic, to write a payoff plan. Debt names are replaced with neutral labels before sending. Nothing is sent unless you tap the button, and the server does not store the request.'],
       ['Export', 'If you export a CSV, it goes wherever you choose to share it. Allot does not transmit it anywhere itself.'],
       ['Questions', 'If you have any questions about privacy, contact the developer through the App Store listing.'],
     ],

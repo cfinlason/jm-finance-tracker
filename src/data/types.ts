@@ -38,6 +38,7 @@ export type Settings = {
   reminders: Reminder[];
   haptics: boolean;
   billReminders: boolean;
+  coachConsent: boolean;
   goals: Goal[];
   name: string;
 };

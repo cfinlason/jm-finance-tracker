@@ -15,6 +15,17 @@ npx expo export --platform ios   # prove the production bundle builds
 
 App Store build: `npx eas build --platform ios --profile production` (bundle id `com.allot.budget`, change in `app.json`).
 
+## Debt coach (Claude)
+
+The debt roadmap computes payoff dates exactly in the app; the optional **Ask the debt coach** button sends those figures (debt names replaced by "Debt A/B…") to a small proxy in `server/`, which calls Claude and returns a written plan. The Anthropic key lives only in `server/.env` (git-ignored) and is never bundled in the app.
+
+```bash
+cd server && node dev.mjs        # local proxy on :8787 (uses server/.env)
+# .env in the project root:  EXPO_PUBLIC_DEBT_COACH_URL=http://localhost:8787/api/debt-coach
+```
+
+For release, deploy `server/` to Vercel with `ANTHROPIC_API_KEY` set as an environment variable and point `EXPO_PUBLIC_DEBT_COACH_URL` at the deployed URL. A physical iPhone can't reach `localhost`; use your computer's LAN IP or the deployed URL.
+
 ## Where things are
 
 | Path | What |

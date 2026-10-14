@@ -1,0 +1,7 @@
+{
+  "name": "allot-debt-coach",
+  "private": true,
+  "type": "module",
+  "scripts": { "dev": "node dev.mjs" },
+  "engines": { "node": ">=20" }
+}

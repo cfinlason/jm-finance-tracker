@@ -87,7 +87,7 @@ const initial = (): State => ({
   activity: [],
   dismissedTips: [],
   readArticles: [],
-  settings: { theme: 'system', reminders: defaultReminders(), haptics: true, billReminders: true, goals: [], name: '' },
+  settings: { theme: 'system', reminders: defaultReminders(), haptics: true, billReminders: true, coachConsent: false, goals: [], name: '' },
 });
 
 /** Consecutive-day streak ending today or yesterday. */
