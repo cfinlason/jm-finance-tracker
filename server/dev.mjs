@@ -12,7 +12,7 @@ if (existsSync(envFile)) {
     if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
   }
 }
-const { default: handler } = await import('./api/debt-coach.mjs');
+const { default: handler } = await import('../api/debt-coach.mjs');
 
 http
   .createServer((req, res) => {

@@ -62,4 +62,9 @@ function render(size, { background }) {
 }
 fs.writeFileSync('assets/icon.png', render(1024, { background: true }));
 fs.writeFileSync('assets/splash-icon.png', render(512, { background: false }));
+fs.mkdirSync('public', { recursive: true });
+fs.writeFileSync('public/apple-touch-icon.png', render(180, { background: true }));
+fs.writeFileSync('public/icon-192.png', render(192, { background: true }));
+fs.writeFileSync('public/icon-512.png', render(512, { background: true }));
+fs.writeFileSync('public/favicon.png', render(48, { background: true }));
 console.log('icons written');

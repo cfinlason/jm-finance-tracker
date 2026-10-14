@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Linking, Share, View } from 'react-native';
+import { Alert, Linking, Platform, Share, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Bell, ChevronRight, Crown, Download, FileText, Plus, ShieldCheck, Smartphone, Trash, Vibrate } from 'lucide-react-native';
 import { useTheme } from '../src/theme/ThemeProvider';
@@ -70,7 +70,10 @@ export default function Settings() {
 
       <View style={{ gap: space.md }}>
         <Text variant="title">Reminders</Text>
-        {perm === 'denied' && (
+        {Platform.OS === 'web' && (
+          <Banner tone="warn" icon={<Bell size={20} color={p.warn} />} title="Reminders need the iOS app" body="Browsers can’t schedule daily reminders. Everything else works the same here." />
+        )}
+        {Platform.OS !== 'web' && perm === 'denied' && (
           <Banner tone="warn" icon={<Bell size={20} color={p.warn} />} title="Notifications are off" body="Allow them in iOS Settings to get your daily reminders." onPress={() => void Linking.openSettings()} />
         )}
         <Group style={{ marginHorizontal: 0 }}>

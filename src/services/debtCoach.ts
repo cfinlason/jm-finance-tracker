@@ -1,8 +1,10 @@
+import { Platform } from 'react-native';
 import type { Debt } from '../data/types';
 import { simulatePayoff } from '../data/selectors';
 
 // Public by design: this is only the address of OUR proxy. The Anthropic key never ships in the app.
-export const COACH_URL = process.env.EXPO_PUBLIC_DEBT_COACH_URL ?? '';
+// On the hosted web version the proxy is a same-origin function at /api/debt-coach.
+export const COACH_URL = process.env.EXPO_PUBLIC_DEBT_COACH_URL ?? (Platform.OS === 'web' ? '/api/debt-coach' : '');
 
 export type CoachPlan = {
   recommendation: 'snowball' | 'avalanche';

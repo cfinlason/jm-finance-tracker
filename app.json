@@ -11,13 +11,32 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.allot.budget",
       "buildNumber": "1",
-      "infoPlist": { "ITSAppUsesNonExemptEncryption": false }
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "plugins": [
       "expo-router",
       "expo-font",
-      ["expo-splash-screen", { "image": "./assets/splash-icon.png", "imageWidth": 150, "backgroundColor": "#0A1512" }],
-      ["expo-notifications", { "color": "#14B88A" }]
-    ]
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 150,
+          "backgroundColor": "#0A1512"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#14B88A"
+        }
+      ]
+    ],
+    "web": {
+      "output": "static",
+      "bundler": "metro",
+      "favicon": "./public/favicon.png"
+    }
   }
 }
