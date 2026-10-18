@@ -8,19 +8,26 @@ import { Badge, Button, Card, Press, Segmented, Text } from '../src/ui/primitive
 import { EmptyState, LockedCard } from '../src/ui/feedback';
 import { ProgressBar } from '../src/ui/charts';
 import { Group, ModalScreen, Reveal, Row } from '../src/ui/layout';
-import { useStore } from '../src/data/store';
+import { useIsPremium, useStore } from '../src/data/store';
 import { monthLabel } from '../src/data/dates';
-import { money, moneyAuto } from '../src/data/format';
-import { payoffDate, simulatePayoff, sum } from '../src/data/selectors';
+import { CURRENCIES, CurrencyCode, money, moneyAuto } from '../src/data/format';
+import { payoffDate, simulatePayoff, sum, toBase } from '../src/data/selectors';
 import { DebtCoachCard } from '../src/features/DebtCoachCard';
 
 export default function Debt() {
   const p = useTheme();
   const router = useRouter();
-  const { debts, isPremium } = useStore();
+  const { debts, settings } = useStore();
+  const isPremium = useIsPremium();
+  const base = settings.currency;
   const [method, setMethod] = useState<'snowball' | 'avalanche'>('snowball');
-  const [extra, setExtra] = useState(100);
-  const live = debts.filter((d) => d.balance > 0);
+  const unit = CURRENCIES[settings.currency as CurrencyCode]?.step ?? 5; // 5 for USD, 500 for JMD…
+  const [extra, setExtra] = useState(unit * 20);
+  // Everything is planned in the base currency, using the user's own exchange rates for foreign debts.
+  const live = useMemo(
+    () => debts.filter((d) => d.balance > 0).map((d) => ({ ...d, balance: toBase(d.balance, d.currency, base, settings.rates), minPayment: toBase(d.minPayment, d.currency, base, settings.rates) })),
+    [debts, base, settings.rates],
+  );
   const result = useMemo(() => simulatePayoff(live, extra, method), [live, extra, method]);
   const other = useMemo(() => simulatePayoff(live, extra, method === 'snowball' ? 'avalanche' : 'snowball'), [live, extra, method]);
   const baseline = useMemo(() => simulatePayoff(live, 0, method), [live, method]);
@@ -66,9 +73,9 @@ export default function Debt() {
             <Card style={{ gap: space.md }}>
               <Text variant="headline">Extra each month</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Press onPress={() => setExtra(Math.max(0, extra - 25))} accessibilityLabel="Decrease extra payment" style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: p.sunken, alignItems: 'center', justifyContent: 'center' }}><Minus size={22} color={p.text} /></Press>
+                <Press onPress={() => setExtra(Math.max(0, extra - unit * 5))} accessibilityLabel="Decrease extra payment" style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: p.sunken, alignItems: 'center', justifyContent: 'center' }}><Minus size={22} color={p.text} /></Press>
                 <Text variant="moneyLg">{moneyAuto(extra)}</Text>
-                <Press onPress={() => setExtra(extra + 25)} accessibilityLabel="Increase extra payment" style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: p.sunken, alignItems: 'center', justifyContent: 'center' }}><Plus size={22} color={p.text} /></Press>
+                <Press onPress={() => setExtra(extra + unit * 5)} accessibilityLabel="Increase extra payment" style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: p.sunken, alignItems: 'center', justifyContent: 'center' }}><Plus size={22} color={p.text} /></Press>
               </View>
               <Text variant="caption" tone="muted" align="center">On top of {moneyAuto(minTotal)} in minimums · {moneyAuto(total)} owed</Text>
             </Card>
@@ -94,10 +101,11 @@ export default function Debt() {
               <Card onPress={() => router.push({ pathname: '/debt-edit', params: { id: d.id } })} style={{ gap: space.sm }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                   <Text variant="bodyStrong">{d.name}</Text>
-                  <Text variant="money">{moneyAuto(d.balance)}</Text>
+                  <Text variant="money">{moneyAuto(d.balance, d.currency)}</Text>
                 </View>
+                {d.currency && d.currency !== base ? <Text variant="caption" tone="muted">≈ {moneyAuto(toBase(d.balance, d.currency, base, settings.rates))} at 1 {d.currency} = {settings.rates[d.currency]?.perUnit ?? '?'} {base}</Text> : null}
                 <ProgressBar value={d.balance > 0 ? Math.min(1, d.minPayment / d.balance) : 1} color={p.expense} height={6} />
-                <Text variant="caption" tone="muted">{d.apr}% APR · {moneyAuto(d.minPayment)} minimum</Text>
+                <Text variant="caption" tone="muted">{d.apr}% APR · {moneyAuto(d.minPayment, d.currency)} minimum</Text>
               </Card>
             </Reveal>
           ))}

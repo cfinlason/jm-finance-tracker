@@ -11,14 +11,14 @@ import { EmptyState } from '../src/ui/feedback';
 import { haptic } from '../src/ui/haptics';
 import { useStore } from '../src/data/store';
 import { currentMonth, monthLabel, ordinal } from '../src/data/dates';
-import { moneyAuto, parseAmount } from '../src/data/format';
+import { moneyAuto, parseAmount, sym } from '../src/data/format';
 import { summarizeMonth } from '../src/data/selectors';
 
 export default function IncomeScreen() {
   const p = useTheme();
   const { month: m } = useLocalSearchParams<{ month?: string }>();
   const month = m ?? currentMonth();
-  const { budgets, txs, addIncome, updateIncome, removeIncome, ensureBudget } = useStore();
+  const { budgets, txs, addIncome, updateIncome, removeIncome, ensureBudget, deleteWithUndo } = useStore();
   const budget = budgets[month];
   const s = useMemo(() => summarizeMonth(txs, budget, month), [txs, budget, month]);
   const [editing, setEditing] = useState<string | 'new' | null>(null);
@@ -49,7 +49,7 @@ export default function IncomeScreen() {
   const del = (id: string) =>
     Alert.alert('Remove this income?', 'Income you already logged stays in your history.', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => { removeIncome(month, id); setEditing(null); } },
+      { text: 'Remove', style: 'destructive', onPress: () => { deleteWithUndo('Removed income', () => removeIncome(month, id)); setEditing(null); } },
     ]);
 
   return (
@@ -86,7 +86,7 @@ export default function IncomeScreen() {
         <Card style={{ gap: space.md }}>
           <Text variant="title">{editing === 'new' ? 'New income' : 'Edit income'}</Text>
           <Field label="Name" value={name} onChangeText={setName} placeholder="Paycheck" autoCapitalize="words" />
-          <Field label="Expected this month" prefix="$" value={planned} onChangeText={(t) => setPlanned(t.replace(/[^0-9.]/g, ''))} keyboardType="decimal-pad" />
+          <Field label="Expected this month" prefix={sym()} value={planned} onChangeText={(t) => setPlanned(t.replace(/[^0-9.]/g, ''))} keyboardType="decimal-pad" />
           <Field label="Payday (day of month)" value={day} onChangeText={(t) => setDay(t.replace(/[^0-9]/g, '').slice(0, 2))} keyboardType="number-pad" placeholder="Optional" />
           {error ? <Text variant="callout" tone="danger">{error}</Text> : null}
           <Button title="Save income" onPress={save} small />

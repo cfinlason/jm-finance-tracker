@@ -9,15 +9,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bell, Check, ChevronLeft, Coins, ShieldCheck, WifiOff } from 'lucide-react-native';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { radius, shadow, space } from '../src/theme/tokens';
-import { Button, Card, Field, IconTile, Press, Text } from '../src/ui/primitives';
+import { Button, Card, Chip, Field, IconTile, Press, Text } from '../src/ui/primitives';
 import { Icon } from '../src/ui/Icon';
 import { Ring } from '../src/ui/charts';
 import { TimeStepper } from '../src/ui/TimeStepper';
 import { GOAL_OPTIONS, TEMPLATES, TemplateId, buildStarter } from '../src/data/templates';
 import { Goal, Reminder } from '../src/data/types';
 import { useStore } from '../src/data/store';
+import { FEATURES } from '../src/config';
 import { currentMonth } from '../src/data/dates';
-import { money, parseAmount } from '../src/data/format';
+import { CURRENCIES, CURRENCY_LIST, CurrencyCode, money, parseAmount, setCurrency as setActiveCurrency, sym } from '../src/data/format';
 import { requestPermission } from '../src/services/notifications';
 import { haptic } from '../src/ui/haptics';
 
@@ -100,7 +101,14 @@ export default function Onboarding() {
   const [step, setStep] = useState(0);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [name, setName] = useState('');
+  const [currency, setCurrencyState] = useState<CurrencyCode>('USD');
   const [income, setIncome] = useState('4000');
+  const pickCurrency = (c: CurrencyCode) => {
+    // Swap the sample income only if the user hasn't typed their own number.
+    if (income === String(CURRENCIES[currency].sampleIncome)) setIncome(String(CURRENCIES[c].sampleIncome));
+    setCurrencyState(c);
+    setActiveCurrency(c); // so every money() on these screens already shows the chosen symbol
+  };
   const [payDay, setPayDay] = useState('1');
   const [template, setTemplate] = useState<TemplateId>('balanced');
   const [time, setTime] = useState({ h: 20, m: 0 });
@@ -109,7 +117,7 @@ export default function Onboarding() {
 
   const amount = parseAmount(income);
   const incomeError = amount <= 0 ? 'Enter your monthly take-home pay' : amount > 10_000_000 ? 'That looks too large' : null;
-  const preview = amount > 0 ? buildStarter(currentMonth(), amount, template) : null;
+  const preview = amount > 0 ? buildStarter(currentMonth(), amount, template, 'Paycheck', 1, CURRENCIES[currency].step) : null;
 
   const next = () => {
     haptic.tap();
@@ -124,9 +132,9 @@ export default function Onboarding() {
       granted = res === 'granted';
     }
     const reminders: Reminder[] = [{ id: 'rem_evening', label: 'Log today’s spending', hour: time.h, minute: time.m, enabled: remindOn && granted }];
-    complete({ name: name.trim(), goals, monthlyIncome: amount, template, payDay: Math.min(31, Math.max(1, parseInt(payDay, 10) || 1)), reminders });
+    complete({ name: name.trim(), goals, monthlyIncome: amount, template, payDay: Math.min(31, Math.max(1, parseInt(payDay, 10) || 1)), reminders, currency });
     haptic.success();
-    setTimeout(() => router.push({ pathname: '/paywall', params: { from: 'onboarding' } }), 450);
+    if (FEATURES.paywall) setTimeout(() => router.push({ pathname: '/paywall', params: { from: 'onboarding' } }), 450);
   };
 
   const canContinue = step === 1 ? goals.length > 0 : step === 2 ? !incomeError : true;
@@ -179,7 +187,13 @@ export default function Onboarding() {
             <ScrollView contentContainerStyle={{ padding: space.xl, gap: space.lg }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
               <Title title="Let’s start with income" body="What lands in your account each month after taxes? A rough number is fine — you can change it any time." />
               <Field label="First name (optional)" value={name} onChangeText={setName} placeholder="Alex" autoCapitalize="words" returnKeyType="next" />
-              <Field label="Monthly take-home" prefix="$" value={income} onChangeText={(t) => setIncome(t.replace(/[^0-9.]/g, ''))} keyboardType="decimal-pad" placeholder="4000" error={incomeError} />
+              <View style={{ gap: 10 }}>
+                <Text variant="overline" tone="muted">Currency</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {CURRENCY_LIST.map((c) => <Chip key={c.code} label={`${c.code} ${c.symbol}`} selected={currency === c.code} onPress={() => pickCurrency(c.code)} />)}
+                </View>
+              </View>
+              <Field label="Monthly take-home" prefix={sym()} value={income} onChangeText={(t) => setIncome(t.replace(/[^0-9.]/g, ''))} keyboardType="decimal-pad" placeholder={String(CURRENCIES[currency].sampleIncome)} error={incomeError} />
               <Field label="Usual payday (day of month)" value={payDay} onChangeText={(t) => setPayDay(t.replace(/[^0-9]/g, '').slice(0, 2))} keyboardType="number-pad" placeholder="1" suffix="of the month" />
               <Card style={{ flexDirection: 'row', gap: space.md, alignItems: 'center' }}>
                 <ShieldCheck size={22} color={p.accent} />
@@ -193,7 +207,7 @@ export default function Onboarding() {
               <Title title="Pick a starting plan" body={`We’ll split ${money(amount, { cents: false })} into lines that add up to zero. Everything is editable.`} />
               {TEMPLATES.map((t, i) => {
                 const on = template === t.id;
-                const pv = amount > 0 ? buildStarter(currentMonth(), amount, t.id) : null;
+                const pv = amount > 0 ? buildStarter(currentMonth(), amount, t.id, 'Paycheck', 1, CURRENCIES[currency].step) : null;
                 const lines = pv?.budget.groups.reduce((a, g) => a + g.items.length, 0) ?? 0;
                 return (
                   <Animated.View key={t.id} entering={FadeInDown.delay(i * 60).springify()}>

@@ -8,16 +8,18 @@ import { Badge, Button, Card, Text } from '../src/ui/primitives';
 import { EmptyState, LockedCard } from '../src/ui/feedback';
 import { Sparkline } from '../src/ui/charts';
 import { Group, ModalScreen, Reveal, Row } from '../src/ui/layout';
-import { useStore } from '../src/data/store';
+import { useIsPremium, useStore } from '../src/data/store';
 import { money, moneyAuto } from '../src/data/format';
-import { sum } from '../src/data/selectors';
+import { sum, toBase } from '../src/data/selectors';
 
 export default function NetWorth() {
   const p = useTheme();
   const router = useRouter();
-  const { netEntries, netHistory, isPremium } = useStore();
-  const assets = sum(netEntries.filter((e) => e.kind === 'asset').map((e) => e.amount));
-  const liabilities = sum(netEntries.filter((e) => e.kind === 'liability').map((e) => e.amount));
+  const { netEntries, netHistory, settings } = useStore();
+  const conv = (e: { amount: number; currency?: string }) => toBase(e.amount, e.currency, settings.currency, settings.rates);
+  const isPremium = useIsPremium();
+  const assets = sum(netEntries.filter((e) => e.kind === 'asset').map(conv));
+  const liabilities = sum(netEntries.filter((e) => e.kind === 'liability').map(conv));
   const nw = assets - liabilities;
   const series = netHistory.map((h) => h.assets - h.liabilities);
   const delta = series.length > 1 ? series[series.length - 1] - series[0] : 0;
@@ -56,7 +58,7 @@ export default function NetWorth() {
                 <Text variant="title" style={{ marginBottom: space.sm }}>{kind === 'asset' ? 'Assets' : 'Liabilities'}</Text>
                 <Group style={{ marginHorizontal: 0 }}>
                   {list.map((e, i) => (
-                    <Row key={e.id} title={e.name} right={<Text variant="money">{moneyAuto(e.amount)}</Text>} onPress={() => router.push({ pathname: '/net-edit', params: { id: e.id } })} last={i === list.length - 1} />
+                    <Row key={e.id} title={e.name} right={<Text variant="money">{moneyAuto(e.amount, e.currency)}</Text>} onPress={() => router.push({ pathname: '/net-edit', params: { id: e.id } })} last={i === list.length - 1} />
                   ))}
                 </Group>
               </Reveal>

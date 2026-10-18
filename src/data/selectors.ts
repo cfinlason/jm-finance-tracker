@@ -5,6 +5,13 @@ import { Budget, BudgetItem, Debt, Fund, Group, ID, Tx } from './types';
 
 export const sum = (xs: number[]) => round2(xs.reduce((a, b) => a + b, 0));
 
+/** Convert an amount in `code` to the base currency using the user's own rate; unknown/missing rate = 1:1. */
+export function toBase(amount: number, code: string | undefined, base: string, rates: Record<string, { perUnit: number }>): number {
+  if (!code || code === base) return amount;
+  const r = rates[code]?.perUnit;
+  return round2(amount * (r && r > 0 ? r : 1));
+}
+
 export function txsInMonth(txs: Tx[], month: string): Tx[] {
   return txs.filter((t) => t.date.startsWith(month));
 }

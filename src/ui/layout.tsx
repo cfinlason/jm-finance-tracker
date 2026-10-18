@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshControl, ScrollView, StyleProp, View, ViewStyle } from 'react-native';
+import { KeyboardAvoidingView, Platform, RefreshControl, ScrollView, StyleProp, View, ViewStyle } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -72,19 +72,19 @@ export function ModalScreen({
   const close = onClose ?? (() => (router.canGoBack() ? router.back() : router.replace('/')));
   const Body = scroll ? ScrollView : View;
   return (
-    <View style={{ flex: 1, backgroundColor: p.bg }}>
-      <View style={{ paddingTop: back ? insets.top + space.sm : space.md, paddingHorizontal: space.xl, paddingBottom: space.md }}>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: p.bg }}>
+      <View style={{ paddingTop: Math.max(insets.top, Platform.OS === 'web' ? 24 : 0) + (back ? space.md : space.lg), paddingHorizontal: space.xl, paddingBottom: space.md }}>
         {!back && <View style={{ alignSelf: 'center', width: 38, height: 5, borderRadius: 3, backgroundColor: p.line, marginBottom: space.md }} />}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
           {back ? (
-            <Press onPress={close} accessibilityLabel="Back" style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: p.surface, alignItems: 'center', justifyContent: 'center' }}>
+            <Press onPress={close} accessibilityLabel="Back" hitSlop={10} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: p.surface, alignItems: 'center', justifyContent: 'center' }}>
               <ChevronLeft size={22} color={p.text} />
             </Press>
           ) : null}
           <Text variant="title" style={{ flex: 1 }} numberOfLines={1}>{title}</Text>
           {!back && (
-            <Press onPress={close} accessibilityLabel="Close" style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: p.sunken, alignItems: 'center', justifyContent: 'center' }}>
-              <X size={18} color={p.textMuted} />
+            <Press onPress={close} accessibilityLabel="Close" hitSlop={12} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: p.sunken, alignItems: 'center', justifyContent: 'center' }}>
+              <X size={20} color={p.textMuted} />
             </Press>
           )}
         </View>
@@ -93,7 +93,7 @@ export function ModalScreen({
         {children}
       </Body>
       {footer ? <View style={{ padding: space.xl, paddingBottom: insets.bottom + space.lg, backgroundColor: p.bg, borderTopWidth: 1, borderTopColor: p.line }}>{footer}</View> : null}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

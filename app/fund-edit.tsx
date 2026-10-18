@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { goBack } from '../src/ui/nav';
 import { Alert, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, ChevronRight, Trash } from 'lucide-react-native';
@@ -10,14 +11,14 @@ import { ModalScreen } from '../src/ui/layout';
 import { haptic } from '../src/ui/haptics';
 import { useStore } from '../src/data/store';
 import { addMonths, currentMonth, dateInMonth, monthKey, monthLabel } from '../src/data/dates';
-import { parseAmount } from '../src/data/format';
+import { parseAmount, sym } from '../src/data/format';
 import type { IconKey } from '../src/data/types';
 
 export default function FundEdit() {
   const p = useTheme();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { funds, addFund, updateFund, removeFund } = useStore();
+  const { funds, addFund, updateFund, removeFund, deleteWithUndo } = useStore();
   const fund = funds.find((f) => f.id === id);
   const [name, setName] = useState(fund?.name ?? '');
   const [icon, setIcon] = useState<IconKey>(fund?.icon ?? 'piggy');
@@ -36,12 +37,12 @@ export default function FundEdit() {
     if (fund) updateFund(fund.id, patch);
     else addFund(patch);
     haptic.success();
-    router.back();
+    goBack(router);
   };
   const del = () =>
     Alert.alert(`Delete “${fund?.name}”?`, 'Its balance is removed. Budget lines that fed it stay, but become regular lines.', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => { if (fund) removeFund(fund.id); router.back(); } },
+      { text: 'Delete', style: 'destructive', onPress: () => { if (fund) deleteWithUndo(`Deleted ${fund.name}`, () => removeFund(fund.id)); goBack(router); } },
     ]);
 
   return (
@@ -56,8 +57,8 @@ export default function FundEdit() {
       }
     >
       <Field label="Name" value={name} onChangeText={setName} placeholder="Vacation" autoCapitalize="words" />
-      <Field label="Goal" prefix="$" value={goal} onChangeText={(t) => setGoal(t.replace(/[^0-9.]/g, ''))} keyboardType="decimal-pad" placeholder="2,000" />
-      <Field label="Already saved (optional)" prefix="$" value={opening} onChangeText={(t) => setOpening(t.replace(/[^0-9.]/g, ''))} keyboardType="decimal-pad" placeholder="0" />
+      <Field label="Goal" prefix={sym()} value={goal} onChangeText={(t) => setGoal(t.replace(/[^0-9.]/g, ''))} keyboardType="decimal-pad" placeholder="2,000" />
+      <Field label="Already saved (optional)" prefix={sym()} value={opening} onChangeText={(t) => setOpening(t.replace(/[^0-9.]/g, ''))} keyboardType="decimal-pad" placeholder="0" />
       <View style={{ gap: space.sm, padding: space.lg, backgroundColor: p.surface, borderRadius: radius.lg }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
           <View style={{ flex: 1 }}>

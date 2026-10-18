@@ -8,14 +8,15 @@ import { Skeleton } from '../ui/feedback';
 import { haptic } from '../ui/haptics';
 import { useStore } from '../data/store';
 import type { Debt } from '../data/types';
-import { askDebtCoach, CoachError, CoachPlan, COACH_URL } from '../services/debtCoach';
+import { askDebtCoach, CoachError, CoachPlan, COACH_URL, localDebtPlan } from '../services/debtCoach';
 
-type Status = { s: 'idle' } | { s: 'loading' } | { s: 'done'; plan: CoachPlan } | { s: 'error'; kind: CoachError['kind']; msg: string };
+type Status = { s: 'idle' } | { s: 'loading' } | { s: 'done'; plan: CoachPlan; offline?: string } | { s: 'error'; kind: CoachError['kind']; msg: string };
 
 /** AI plan on top of the simulator's exact numbers. Opt-in, and says exactly what leaves the phone. */
 export function DebtCoachCard({ debts, extra, onPickMethod }: { debts: Debt[]; extra: number; onPickMethod: (m: 'snowball' | 'avalanche') => void }) {
   const p = useTheme();
   const consent = useStore((s) => s.settings.coachConsent);
+  const currency = useStore((s) => s.settings.currency);
   const setSettings = useStore((s) => s.setSettings);
   const [st, setSt] = useState<Status>({ s: 'idle' });
 
@@ -27,14 +28,17 @@ export function DebtCoachCard({ debts, extra, onPickMethod }: { debts: Debt[]; e
     if (!consent) setSettings({ coachConsent: true });
     setSt({ s: 'loading' });
     try {
-      const plan = await askDebtCoach(debts, extra);
+      const plan = await askDebtCoach(debts, extra, currency);
       setSt({ s: 'done', plan });
       onPickMethod(plan.recommendation);
       haptic.success();
     } catch (e) {
-      const err = e instanceof CoachError ? e : new CoachError('failed', 'Something went wrong. Please try again.');
-      setSt({ s: 'error', kind: err.kind, msg: err.message });
-      haptic.warn();
+      // Never dead-end: fall back to a plan built from the same simulator numbers, and say why.
+      const err = e instanceof CoachError ? e : new CoachError('failed', 'Something went wrong.');
+      const plan = localDebtPlan(debts, extra);
+      setSt({ s: 'done', plan, offline: err.message });
+      onPickMethod(plan.recommendation);
+      haptic.tap();
     }
   };
 
@@ -86,6 +90,12 @@ export function DebtCoachCard({ debts, extra, onPickMethod }: { debts: Debt[]; e
 
       {st.s === 'done' && (
         <View style={{ gap: space.md }}>
+          {st.offline ? (
+            <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'flex-start', backgroundColor: p.mode === 'dark' ? '#3A2E12' : '#FBEFD6', borderRadius: 14, padding: space.md }}>
+              <WifiOff size={18} color={p.warn} style={{ marginTop: 1 }} />
+              <Text variant="callout" style={{ flex: 1 }}>AI coach unavailable: {st.offline} Here’s a plan built from your numbers instead.</Text>
+            </View>
+          ) : null}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
             <Badge label={st.plan.recommendation === 'snowball' ? 'SNOWBALL' : 'AVALANCHE'} />
             <Text variant="caption" tone="muted">recommended</Text>
@@ -109,8 +119,8 @@ export function DebtCoachCard({ debts, extra, onPickMethod }: { debts: Debt[]; e
             </View>
           )}
           <Text variant="callout" tone="accent">{st.plan.encouragement}</Text>
-          <Text variant="caption" tone="faint">AI-written guidance based on the figures above, not financial advice. Check the numbers before you act.</Text>
-          <Button title="Ask again" variant="ghost" small onPress={() => void run()} />
+          <Text variant="caption" tone="faint">{st.offline ? 'Rule-based plan from the figures above' : 'AI-written guidance based on the figures above'}, not financial advice. Check the numbers before you act.</Text>
+          <Button title={st.offline ? 'Try the AI coach again' : 'Ask again'} variant="ghost" small onPress={() => void run()} />
         </View>
       )}
     </Card>

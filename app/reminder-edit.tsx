@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { goBack } from '../src/ui/nav';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Trash } from 'lucide-react-native';
 import { useTheme } from '../src/theme/ThemeProvider';
@@ -22,7 +23,7 @@ export default function ReminderEdit() {
     await requestPermission();
     const next = { id: existing?.id ?? uid('rem'), label: label.trim() || 'Log today’s spending', hour: t.h, minute: t.m, enabled: true };
     setReminders(existing ? settings.reminders.map((r) => (r.id === existing.id ? next : r)) : [...settings.reminders, next]);
-    router.back();
+    goBack(router);
   };
 
   return (
@@ -32,7 +33,7 @@ export default function ReminderEdit() {
         <>
           <Button title="Save reminder" onPress={() => void save()} />
           {existing && settings.reminders.length > 0 ? (
-            <Button title="Delete reminder" variant="danger" small onPress={() => { setReminders(settings.reminders.filter((r) => r.id !== existing.id)); router.back(); }} icon={<Trash size={16} color={p.danger} />} />
+            <Button title="Delete reminder" variant="danger" small onPress={() => { setReminders(settings.reminders.filter((r) => r.id !== existing.id)); goBack(router); }} icon={<Trash size={16} color={p.danger} />} />
           ) : null}
         </>
       }

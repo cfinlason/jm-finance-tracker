@@ -17,7 +17,7 @@ import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
 import { ThemeProvider, useTheme } from '../src/theme/ThemeProvider';
 import { useStore } from '../src/data/store';
 import { currentMonth } from '../src/data/dates';
-import { CelebrationHost, ScreenSkeleton } from '../src/ui/feedback';
+import { CelebrationHost, ScreenSkeleton, UndoHost } from '../src/ui/feedback';
 import { collectBills, syncNotifications } from '../src/services/notifications';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
@@ -64,6 +64,7 @@ function Root() {
           <Stack.Screen name="item" options={modal} />
           <Stack.Screen name="group" options={modal} />
           <Stack.Screen name="income" options={modal} />
+          <Stack.Screen name="budget-coach" options={modal} />
           <Stack.Screen name="fund-edit" options={modal} />
           <Stack.Screen name="debt-edit" options={modal} />
           <Stack.Screen name="net-edit" options={modal} />
@@ -79,6 +80,7 @@ function Root() {
           <Stack.Screen name="legal" />
         </Stack.Protected>
       </Stack>
+      <UndoHost />
       <CelebrationHost />
     </View>
   );

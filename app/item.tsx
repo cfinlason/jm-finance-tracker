@@ -1,17 +1,18 @@
 import React, { useMemo, useState } from 'react';
+import { goBack } from '../src/ui/nav';
 import { Alert, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { PiggyBank, Trash } from 'lucide-react-native';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { space } from '../src/theme/tokens';
-import { Button, Card, Field, IconTile, Press, Text, Toggle } from '../src/ui/primitives';
+import { Button, Card, Chip, Field, IconTile, Press, Text, Toggle } from '../src/ui/primitives';
 import { Icon } from '../src/ui/Icon';
 import { Group, ModalScreen, Row } from '../src/ui/layout';
 import { Banner } from '../src/ui/feedback';
 import { haptic } from '../src/ui/haptics';
 import { useStore } from '../src/data/store';
 import { currentMonth, prettyDate } from '../src/data/dates';
-import { money, moneyAuto, parseAmount } from '../src/data/format';
+import { money, moneyAuto, parseAmount, sym } from '../src/data/format';
 import { fundBalances, monthlyNeed, summarizeMonth } from '../src/data/selectors';
 
 /** Put the leftover (or take out the overage) on a line with one tap. */
@@ -24,7 +25,7 @@ function AssignView({ month }: { month: string }) {
   const apply = (itemId: string, planned: number) => {
     setPlanned(month, itemId, Math.max(0, planned + left));
     haptic.success();
-    router.back();
+    goBack(router);
   };
   return (
     <ModalScreen title={left >= 0 ? 'Assign what’s left' : 'Trim your plan'}>
@@ -46,7 +47,7 @@ function AssignView({ month }: { month: string }) {
 function ItemForm({ month, id, groupId }: { month: string; id?: string; groupId?: string }) {
   const p = useTheme();
   const router = useRouter();
-  const { budgets, txs, funds, addItem, updateItem, removeItem, addFund, updateFund } = useStore();
+  const { budgets, txs, funds, addItem, updateItem, removeItem, addFund, updateFund, moveItem, deleteWithUndo } = useStore();
   const found = useMemo(() => {
     for (const g of budgets[month]?.groups ?? []) for (const i of g.items) if (i.id === id) return { item: i, group: g };
     return null;
@@ -57,6 +58,7 @@ function ItemForm({ month, id, groupId }: { month: string; id?: string; groupId?
   const [planned, setPlannedStr] = useState(item ? String(item.planned) : '');
   const [due, setDue] = useState(item?.dueDay ? String(item.dueDay) : '');
   const [isFund, setIsFund] = useState(!!item?.fundId);
+  const [targetGroup, setTargetGroup] = useState<string | undefined>(gid);
   const [error, setError] = useState<string | null>(null);
   const fund = item?.fundId ? funds.find((f) => f.id === item.fundId) : undefined;
   const bal = useMemo(() => fundBalances({ funds, txs, budgets }), [funds, txs, budgets]);
@@ -73,17 +75,21 @@ function ItemForm({ month, id, groupId }: { month: string; id?: string; groupId?
     if (isFund && !fundId) fundId = addFund({ name: name.trim(), icon: 'piggy', goal: Math.max(amt * 6, 500), opening: 0 });
     if (!isFund && fundId) fundId = undefined;
     if (fund && isFund && fund.name !== name.trim()) updateFund(fund.id, { name: name.trim() });
-    if (item) updateItem(month, item.id, { name: name.trim(), planned: amt, dueDay, fundId });
+    if (item) {
+      updateItem(month, item.id, { name: name.trim(), planned: amt, dueDay, fundId });
+      if (targetGroup && targetGroup !== found?.group.id) moveItem(month, item.id, targetGroup);
+    }
     else addItem(month, gid, { name: name.trim(), planned: amt, dueDay, fundId });
     haptic.success();
-    router.back();
+    goBack(router);
   };
 
-  const del = () =>
-    Alert.alert(`Delete “${item?.name}”?`, 'Past transactions stay in your history as uncategorized.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => { if (item) removeItem(month, item.id); router.back(); } },
-    ]);
+  const del = () => {
+    if (!item) return;
+    // No confirm dialog: Undo is faster and safer. Past transactions stay in history as uncategorized.
+    deleteWithUndo(`Deleted ${item.name}`, () => removeItem(month, item.id));
+    goBack(router);
+  };
 
   return (
     <ModalScreen
@@ -97,7 +103,15 @@ function ItemForm({ month, id, groupId }: { month: string; id?: string; groupId?
       }
     >
       <Field label="Name" value={name} onChangeText={setName} placeholder="Groceries" autoCapitalize="words" />
-      <Field label="Planned this month" prefix="$" value={planned} onChangeText={(t) => setPlannedStr(t.replace(/[^0-9.]/g, ''))} keyboardType="decimal-pad" placeholder="0" />
+      <Field label="Planned this month" prefix={sym()} value={planned} onChangeText={(t) => setPlannedStr(t.replace(/[^0-9.]/g, ''))} keyboardType="decimal-pad" placeholder="0" />
+      {item && (budgets[month]?.groups.length ?? 0) > 1 ? (
+        <View style={{ gap: 8 }}>
+          <Text variant="overline" tone="muted">Group</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {budgets[month]?.groups.map((g) => <Chip key={g.id} label={g.name} selected={targetGroup === g.id} onPress={() => setTargetGroup(g.id)} />)}
+          </View>
+        </View>
+      ) : null}
       <Field label="Due day (for bills)" value={due} onChangeText={(t) => setDue(t.replace(/[^0-9]/g, '').slice(0, 2))} keyboardType="number-pad" placeholder="Optional, e.g. 15" suffix="of the month" />
       <Card style={{ gap: space.sm }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>

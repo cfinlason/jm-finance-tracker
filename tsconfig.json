@@ -3,6 +3,14 @@
   "compilerOptions": {
     "strict": true
   },
-  "include": ["app", "src", "expo-env.d.ts", ".expo/types/**/*.ts"],
-  "exclude": ["node_modules", "dist", "server", "api"]
+  "include": [
+    "app",
+    "src"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "server",
+    "api"
+  ]
 }

@@ -11,6 +11,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import { radius, shadow, space, spring } from '../theme/tokens';
 import { Button, Card, Press, Text } from './primitives';
 import { haptic } from './haptics';
+import { useStore } from '../data/store';
 
 // ---- Empty / error / locked states -------------------------------------------------
 
@@ -154,3 +155,27 @@ export function CelebrationHost() {
 }
 
 export { spring };
+
+/** Bottom toast that appears after a delete and lets the user take it back for a few seconds. */
+export function UndoHost() {
+  const p = useTheme();
+  const undo = useStore((s) => s.undo);
+  const undoLast = useStore((s) => s.undoLast);
+  const clearUndo = useStore((s) => s.clearUndo);
+  useEffect(() => {
+    if (!undo) return;
+    const t = setTimeout(clearUndo, 6000);
+    return () => clearTimeout(t);
+  }, [undo, clearUndo]);
+  if (!undo) return null;
+  return (
+    <Animated.View key={undo.id} entering={FadeIn.duration(180)} exiting={FadeOut.duration(200)} pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: 112, alignItems: 'center', paddingHorizontal: space.lg }}>
+      <View style={[{ flexDirection: 'row', alignItems: 'center', gap: space.lg, paddingLeft: space.lg, paddingRight: space.sm, height: 52, borderRadius: radius.pill, backgroundColor: p.text, maxWidth: 420 }, shadow(p, 3)]}>
+        <Text variant="callout" numberOfLines={1} style={{ color: p.bg, flexShrink: 1 }}>{undo.label}</Text>
+        <Press onPress={() => { undoLast(); haptic.success(); }} accessibilityLabel="Undo delete" style={{ height: 36, paddingHorizontal: space.lg, borderRadius: radius.pill, backgroundColor: p.accent, alignItems: 'center', justifyContent: 'center' }}>
+          <Text variant="callout" style={{ color: p.onAccent, fontFamily: 'Inter_700Bold' }}>Undo</Text>
+        </Press>
+      </View>
+    </Animated.View>
+  );
+}

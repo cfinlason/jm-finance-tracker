@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { goBack } from '../src/ui/nav';
 import { Alert, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Trash } from 'lucide-react-native';
@@ -17,7 +18,7 @@ export default function GroupScreen() {
   const router = useRouter();
   const { id, month: m } = useLocalSearchParams<{ id?: string; month?: string }>();
   const month = m ?? currentMonth();
-  const { budgets, addGroup, updateGroup, removeGroup } = useStore();
+  const { budgets, addGroup, updateGroup, removeGroup, deleteWithUndo } = useStore();
   const group = budgets[month]?.groups.find((g) => g.id === id);
   const [name, setName] = useState(group?.name ?? '');
   const [icon, setIcon] = useState<IconKey>(group?.icon ?? 'sparkles');
@@ -28,12 +29,12 @@ export default function GroupScreen() {
     if (group) updateGroup(month, group.id, { name: name.trim(), icon });
     else addGroup(month, name.trim(), icon);
     haptic.success();
-    router.back();
+    goBack(router);
   };
   const del = () =>
     Alert.alert(`Delete “${group?.name}”?`, `This also removes its ${group?.items.length ?? 0} line(s) from ${month}. Past transactions stay in your history.`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => { if (group) removeGroup(month, group.id); router.back(); } },
+      { text: 'Delete', style: 'destructive', onPress: () => { if (group) deleteWithUndo(`Deleted ${group.name}`, () => removeGroup(month, group.id)); goBack(router); } },
     ]);
 
   return (

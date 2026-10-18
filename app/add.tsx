@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { goBack } from '../src/ui/nav';
 import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, ChevronRight, Scissors, Trash } from 'lucide-react-native';
@@ -12,7 +13,7 @@ import { useCelebration } from '../src/ui/feedback';
 import { haptic } from '../src/ui/haptics';
 import { useStore } from '../src/data/store';
 import { addDays, currentMonth, monthKey, prettyDate, todayISO } from '../src/data/dates';
-import { money, moneyAuto, parseAmount, round2 } from '../src/data/format';
+import { money, moneyAuto, parseAmount, round2, sym, groupAmount } from '../src/data/format';
 import { fundBalances, summarizeMonth } from '../src/data/selectors';
 import type { Split, TxKind } from '../src/data/types';
 
@@ -22,7 +23,7 @@ export default function AddTransaction() {
   const p = useTheme();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { txs, budgets, funds, addTx, updateTx, removeTx } = useStore();
+  const { txs, budgets, funds, addTx, updateTx, removeTx, deleteWithUndo } = useStore();
   const editing = id ? txs.find((t) => t.id === id) : undefined;
   const fire = useCelebration((s) => s.fire);
 
@@ -94,12 +95,12 @@ export default function AddTransaction() {
     if (editing) {
       updateTx(editing.id, payload);
       haptic.success();
-      router.back();
+      goBack(router);
       return;
     }
     const res = addTx(payload);
     haptic.success();
-    router.back();
+    goBack(router);
     if (res.streakExtended && res.streak > 1) {
       setTimeout(() => fire({ kind: 'streak', title: `${res.streak}-day streak`, subtitle: 'You logged today. Small habit, big picture.' }), 380);
     } else if (res.streakExtended) {
@@ -110,8 +111,8 @@ export default function AddTransaction() {
   const del = () => {
     if (!editing) return;
     haptic.warn();
-    removeTx(editing.id);
-    router.back();
+    deleteWithUndo(`Deleted ${editing.merchant || 'transaction'}`, () => removeTx(editing.id));
+    goBack(router);
   };
 
   const chips = () => {
@@ -168,7 +169,7 @@ export default function AddTransaction() {
       <View style={{ alignItems: 'center', paddingVertical: space.md }}>
         <Text variant="overline" tone="muted">Amount</Text>
         <Text variant="moneyHero" tone={total > 0 ? (mode === 'income' ? 'income' : 'text') : 'faint'} numberOfLines={1} adjustsFontSizeToFit style={{ maxWidth: '100%' }}>
-          ${amount}
+          {sym()}{groupAmount(amount)}
         </Text>
         {leftAfter !== null && total > 0 && (
           <Text variant="callout" tone={leftAfter < 0 ? 'danger' : 'muted'}>
@@ -213,7 +214,7 @@ export default function AddTransaction() {
                       <Text variant="callout" tone={it ? 'text' : 'faint'} numberOfLines={1} style={{ flex: 1 }}>{it?.name ?? 'Choose category'}</Text>
                       <ChevronRight size={16} color={p.textFaint} />
                     </Press>
-                    <Field value={r.amount} onChangeText={(t) => setRows((rs) => rs.map((x, j) => (j === i ? { ...x, amount: t.replace(/[^0-9.]/g, '') } : x)))} keyboardType="decimal-pad" prefix="$" placeholder="0" style={{ width: 120 }} />
+                    <Field value={r.amount} onChangeText={(t) => setRows((rs) => rs.map((x, j) => (j === i ? { ...x, amount: t.replace(/[^0-9.]/g, '') } : x)))} keyboardType="decimal-pad" prefix={sym()} placeholder="0" style={{ width: 120 }} />
                   </View>
                 );
               })}

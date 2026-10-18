@@ -51,9 +51,9 @@ export const TEMPLATES: { id: TemplateId; title: string; blurb: string; icon: Ic
   { id: 'blank', title: 'Start blank', blurb: 'Build every line yourself. Nothing pre-filled.', icon: 'sparkles', groups: [] },
 ];
 
-const roundTo5 = (n: number) => Math.max(0, Math.round(n / 5) * 5);
+const roundTo = (n: number, step: number) => Math.max(0, Math.round(n / step) * step);
 
-export function buildStarter(month: string, monthlyIncome: number, templateId: TemplateId, incomeName = 'Paycheck', payDay = 1): { budget: Budget; funds: Fund[] } {
+export function buildStarter(month: string, monthlyIncome: number, templateId: TemplateId, incomeName = 'Paycheck', payDay = 1, step = 5): { budget: Budget; funds: Fund[] } {
   const tpl = TEMPLATES.find((t) => t.id === templateId)!;
   const funds: Fund[] = [];
   const groups: Group[] = tpl.groups.map((g) => ({
@@ -61,13 +61,13 @@ export function buildStarter(month: string, monthlyIncome: number, templateId: T
     name: g.name,
     icon: g.icon,
     items: g.lines.map((l) => {
-      const item = { id: uid('itm'), name: l.name, planned: roundTo5(monthlyIncome * l.pct), dueDay: l.due } as Group['items'][number];
+      const item = { id: uid('itm'), name: l.name, planned: roundTo(monthlyIncome * l.pct, step), dueDay: l.due } as Group['items'][number];
       if (l.fund) {
         const fund: Fund = {
           id: uid('fnd'),
           name: l.name,
           icon: l.icon ?? 'piggy',
-          goal: Math.max(500, roundTo5(monthlyIncome * (l.name.startsWith('Emergency') ? 3 : 1))),
+          goal: Math.max(step * 100, roundTo(monthlyIncome * (l.name.startsWith('Emergency') ? 3 : 1), step)),
           opening: 0,
         };
         funds.push(fund);

@@ -24,8 +24,10 @@ export type Tx = {
 };
 
 export type Fund = { id: ID; name: string; icon: IconKey; goal: number; opening: number; targetDate?: string };
-export type Debt = { id: ID; name: string; balance: number; apr: number; minPayment: number };
-export type NetEntry = { id: ID; name: string; kind: 'asset' | 'liability'; amount: number };
+export type Debt = { id: ID; name: string; balance: number; apr: number; minPayment: number; currency?: string };
+export type NetEntry = { id: ID; name: string; kind: 'asset' | 'liability'; amount: number; currency?: string };
+/** How many units of the base currency one unit of a foreign currency is worth, as entered by the user. */
+export type Rate = { perUnit: number; updated: string };
 export type NetSnapshot = { date: string; assets: number; liabilities: number };
 export type Reminder = { id: ID; label: string; hour: number; minute: number; enabled: boolean };
 
@@ -39,6 +41,8 @@ export type Settings = {
   haptics: boolean;
   billReminders: boolean;
   coachConsent: boolean;
+  currency: string;
+  rates: Record<string, Rate>;
   goals: Goal[];
   name: string;
 };

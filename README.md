@@ -25,9 +25,15 @@ App Store build: `npx eas build --platform ios --profile production` (bundle id 
 
 Web limits: no scheduled reminders (browsers can't), and data lives in that browser/home-screen app only. `npm run web:build` produces `dist/`.
 
-## Debt coach (Claude)
+## Switches & settings
 
-The debt roadmap computes payoff dates exactly in the app; the optional **Ask the debt coach** button sends those figures (debt names replaced by "Debt A/B…") to a small proxy in `server/`, which calls Claude and returns a written plan. The Anthropic key lives only in `server/.env` (git-ignored) and is never bundled in the app.
+- `src/config.ts` → `FEATURES.paywall` is **off** (all tools are unlocked; flip to `true` to bring Allot Plus back).
+- Settings → Currency: pick the main currency and enter your own exchange rates for foreign debts/accounts (kept offline, no live rate feed).
+- Deleting a line, group, debt, fund, income, entry or transaction shows an **Undo** toast.
+
+## Debt coach & Budget coach (Claude)
+
+Two coaches share one proxy: `api/debt-coach.mjs` (payoff plan) and `api/budget-coach.mjs` (suggests a zero-based allocation of your income that minimises debt cost; you review and apply). If the server isn't reachable the app falls back to an offline rule-based plan and says why. The debt roadmap computes payoff dates exactly in the app; the optional **Ask the debt coach** button sends those figures (debt names replaced by "Debt A/B…") to a small proxy in `server/`, which calls Claude and returns a written plan. The Anthropic key lives only in `server/.env` (git-ignored) and is never bundled in the app.
 
 ```bash
 cd server && node dev.mjs        # local proxy on :8787 (uses server/.env; code is in api/debt-coach.mjs)

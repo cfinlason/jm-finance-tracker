@@ -2,6 +2,7 @@ import React from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { Text } from '../src/ui/primitives';
 import { ModalScreen } from '../src/ui/layout';
+import { FEATURES } from '../src/config';
 
 const DOCS = {
   privacy: {
@@ -29,7 +30,8 @@ const DOCS = {
 
 export default function Legal() {
   const { doc } = useLocalSearchParams<{ doc?: string }>();
-  const d = doc === 'terms' ? DOCS.terms : DOCS.privacy;
+  const raw = doc === 'terms' ? DOCS.terms : DOCS.privacy;
+  const d = { ...raw, sections: raw.sections.filter(([h]) => FEATURES.paywall || (h !== 'Purchases' && h !== 'Subscriptions')) };
   return (
     <ModalScreen back title={d.title}>
       {d.sections.map(([h, b]) => (

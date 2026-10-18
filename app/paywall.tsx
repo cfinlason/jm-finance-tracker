@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { goBack } from '../src/ui/nav';
 import { ScrollView, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withRepeat, withTiming, Easing } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -49,7 +50,7 @@ export default function Paywall() {
   }, [shimmer]);
   const shine = useAnimatedStyle(() => ({ transform: [{ translateX: shimmer.value * 320 }, { rotate: '18deg' }] }));
 
-  const close = () => (router.canGoBack() ? router.back() : router.replace('/'));
+  const close = () => (router.canGoBack() ? goBack(router) : router.replace('/'));
 
   const buy = () => {
     setBusy('buy');

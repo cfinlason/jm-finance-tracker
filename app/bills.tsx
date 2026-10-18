@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { goBack } from '../src/ui/nav';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { CalendarDays, Check, ChevronLeft, ChevronRight } from 'lucide-react-native';
@@ -45,7 +46,7 @@ export default function Bills() {
       </View>
 
       {bills.length === 0 ? (
-        <EmptyState icon={<CalendarDays size={38} color={p.accent} />} title="No bills with due dates" body="Open any budget line and set a due day. It shows up here, and you can get a reminder the day before." action="Back to budget" onAction={() => router.back()} />
+        <EmptyState icon={<CalendarDays size={38} color={p.accent} />} title="No bills with due dates" body="Open any budget line and set a due day. It shows up here, and you can get a reminder the day before." action="Back to budget" onAction={() => goBack(router)} />
       ) : (
         <>
           <Reveal>

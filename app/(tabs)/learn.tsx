@@ -11,6 +11,7 @@ import { ProgressBar } from '../../src/ui/charts';
 import { Reveal, Screen } from '../../src/ui/layout';
 import { ARTICLES, CATEGORIES } from '../../src/content/learn';
 import { useStore } from '../../src/data/store';
+import { FEATURES } from '../../src/config';
 
 export default function Learn() {
   const p = useTheme();
@@ -64,7 +65,7 @@ export default function Learn() {
                 <Text variant="caption" tone="muted" numberOfLines={2}>{a.summary}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
                   <Text variant="caption" tone="faint">{a.category} · {a.minutes} min</Text>
-                  {a.premium ? <Badge label="PLUS TOOL" tone="info" /> : null}
+                  {FEATURES.paywall && a.premium ? <Badge label="PLUS TOOL" tone="info" /> : null}
                 </View>
               </View>
               {read.includes(a.id) ? <Check size={20} color={p.accent} /> : <ChevronRight size={18} color={p.textFaint} />}

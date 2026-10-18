@@ -9,7 +9,7 @@ import { Icon } from '../src/ui/Icon';
 import { EmptyState, LockedCard } from '../src/ui/feedback';
 import { Bars, Donut } from '../src/ui/charts';
 import { ModalScreen, Reveal } from '../src/ui/layout';
-import { useStore } from '../src/data/store';
+import { useIsPremium, useStore } from '../src/data/store';
 import { addMonths, currentMonth, monthLabel } from '../src/data/dates';
 import { money, moneyAuto, pct } from '../src/data/format';
 import { merchantTotals, monthlySeries, spendByGroup, summarizeMonth } from '../src/data/selectors';
@@ -17,7 +17,8 @@ import { merchantTotals, monthlySeries, spendByGroup, summarizeMonth } from '../
 export default function Reports() {
   const p = useTheme();
   const router = useRouter();
-  const { txs, budgets, isPremium } = useStore();
+  const { txs, budgets } = useStore();
+  const isPremium = useIsPremium();
   const [month, setMonth] = useState(currentMonth());
   const [active, setActive] = useState<string | null>(null);
   const [span, setSpan] = useState<6 | 12>(6);

@@ -12,11 +12,22 @@ if (existsSync(envFile)) {
     if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
   }
 }
-const { default: handler } = await import('../api/debt-coach.mjs');
+const routes = {
+  '/api/debt-coach': (await import('../api/debt-coach.mjs')).default,
+  '/api/budget-coach': (await import('../api/budget-coach.mjs')).default,
+};
 
 http
   .createServer((req, res) => {
-    if (req.url !== '/api/debt-coach') {
+    // Local testing only: the web preview runs on another port, so allow cross-origin calls.
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Headers', 'content-type');
+    if (req.method === 'OPTIONS') {
+      res.statusCode = 204;
+      return res.end();
+    }
+    const handler = routes[req.url];
+    if (!handler) {
       res.statusCode = 404;
       return res.end('not found');
     }

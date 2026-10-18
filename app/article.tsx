@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { goBack } from '../src/ui/nav';
 import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Clock, Lightbulb } from 'lucide-react-native';
@@ -10,14 +11,14 @@ import { Icon } from '../src/ui/Icon';
 import { EmptyState } from '../src/ui/feedback';
 import { ModalScreen, Reveal } from '../src/ui/layout';
 import { ARTICLES } from '../src/content/learn';
-import { useStore } from '../src/data/store';
+import { useIsPremium, useStore } from '../src/data/store';
 
 export default function ArticleScreen() {
   const p = useTheme();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const markRead = useStore((s) => s.markRead);
-  const isPremium = useStore((s) => s.isPremium);
+  const isPremium = useIsPremium();
   const a = ARTICLES.find((x) => x.id === id);
   useEffect(() => {
     if (a) markRead(a.id);
@@ -26,7 +27,7 @@ export default function ArticleScreen() {
   if (!a) {
     return (
       <ModalScreen back title="Article">
-        <EmptyState icon={<Lightbulb size={36} color={p.accent} />} title="Article not found" body="That guide isn’t available. Head back to the Learn tab to pick another." action="Back to Learn" onAction={() => router.back()} />
+        <EmptyState icon={<Lightbulb size={36} color={p.accent} />} title="Article not found" body="That guide isn’t available. Head back to the Learn tab to pick another." action="Back to Learn" onAction={() => goBack(router)} />
       </ModalScreen>
     );
   }

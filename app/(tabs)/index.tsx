@@ -13,7 +13,7 @@ import { ProgressBar, Ring } from '../../src/ui/charts';
 import { Reveal, Screen } from '../../src/ui/layout';
 import { computeStreak, useStore } from '../../src/data/store';
 import { addMonths, currentMonth, greeting, monthLabel } from '../../src/data/dates';
-import { money, moneyAuto } from '../../src/data/format';
+import { money, moneyAuto, moneyShort } from '../../src/data/format';
 import { fundBalances, summarizeMonth } from '../../src/data/selectors';
 import { TIPS } from '../../src/content/learn';
 import type { BudgetItem, Group } from '../../src/data/types';
@@ -65,13 +65,13 @@ function Hero({ s, mode }: { s: ReturnType<typeof summarizeMonth>; mode: View3 }
         </View>
         <View style={{ flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.16)', borderRadius: radius.md, padding: space.md }}>
           {[
-            { k: 'Income', v: s.plannedIncome, sub: s.receivedIncome > 0 ? `${moneyAuto(s.receivedIncome)} in` : 'planned', on: false },
+            { k: 'Income', v: s.plannedIncome, sub: s.receivedIncome > 0 ? `${moneyShort(s.receivedIncome)} in` : 'planned', on: false },
             { k: 'Planned', v: s.plannedExpenses, sub: 'to spend', on: mode === 'planned' },
             { k: 'Spent', v: s.spent, sub: s.spent > planned && planned > 0 ? 'over plan' : 'so far', on: mode === 'spent' },
           ].map((c, i) => (
             <View key={c.k} style={{ flex: 1, paddingLeft: i ? space.md : 0, borderLeftWidth: i ? 1 : 0, borderLeftColor: 'rgba(255,255,255,0.18)' }}>
               <Text variant="caption" style={{ color: 'rgba(255,255,255,0.7)' }}>{c.k}</Text>
-              <Text variant="headline" style={{ color: '#FFFFFF', fontVariant: ['tabular-nums'] }} numberOfLines={1} adjustsFontSizeToFit>{moneyAuto(c.v)}</Text>
+              <Text variant="headline" style={{ color: '#FFFFFF', fontVariant: ['tabular-nums'] }} numberOfLines={1} adjustsFontSizeToFit>{moneyShort(c.v)}</Text>
               <Text variant="caption" style={{ color: 'rgba(255,255,255,0.6)' }}>{c.sub}</Text>
             </View>
           ))}
@@ -131,6 +131,7 @@ function GroupCard({ group, month, mode, s, balances, index }: { group: Group; m
             <View style={{ flex: 1 }}>
               <Text variant="title" numberOfLines={1}>{group.name}</Text>
               <Text variant="caption" tone="muted">{moneyAuto(spent)} of {moneyAuto(planned)}</Text>
+              <View style={{ marginTop: 6 }}><ProgressBar value={planned > 0 ? spent / planned : spent > 0 ? 1.01 : 0} height={6} /></View>
             </View>
             <ChevronRight size={18} color={p.textFaint} />
           </Press>
@@ -232,9 +233,15 @@ export default function BudgetScreen() {
     >
       <View style={{ paddingHorizontal: space.xl, paddingBottom: space.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <MonthSwitcher month={month} onChange={setMonth} />
-        <Press onPress={() => router.push({ pathname: '/income', params: { month } })} haptics="tap" hitSlop={8}>
-          <Text variant="callout" tone="accent">Income</Text>
-        </Press>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.lg }}>
+          <Press onPress={() => router.push('/budget-coach')} haptics="tap" hitSlop={8} accessibilityLabel="Open budget coach" style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Sparkles size={15} color={p.accent} />
+            <Text variant="callout" tone="accent">Coach</Text>
+          </Press>
+          <Press onPress={() => router.push({ pathname: '/income', params: { month } })} haptics="tap" hitSlop={8}>
+            <Text variant="callout" tone="accent">Income</Text>
+          </Press>
+        </View>
       </View>
 
       {!budget ? (

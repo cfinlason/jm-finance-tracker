@@ -8,7 +8,7 @@ import { Badge, Button, Card, Text } from '../src/ui/primitives';
 import { EmptyState, LockedCard } from '../src/ui/feedback';
 import { ProgressBar } from '../src/ui/charts';
 import { ModalScreen, Reveal } from '../src/ui/layout';
-import { useStore } from '../src/data/store';
+import { useIsPremium, useStore } from '../src/data/store';
 import { currentMonth, monthLabel, ordinal } from '../src/data/dates';
 import { money, moneyAuto } from '../src/data/format';
 import { sum } from '../src/data/selectors';
@@ -16,7 +16,8 @@ import { sum } from '../src/data/selectors';
 export default function Paycheck() {
   const p = useTheme();
   const router = useRouter();
-  const { budgets, isPremium } = useStore();
+  const { budgets } = useStore();
+  const isPremium = useIsPremium();
   const month = currentMonth();
   const budget = budgets[month];
 

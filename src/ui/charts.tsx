@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { View } from 'react-native';
-import Animated, { SharedValue, useAnimatedProps, useSharedValue, withSpring, withTiming, Easing } from 'react-native-reanimated';
+import Animated, { SharedValue, useAnimatedProps, useAnimatedStyle, useSharedValue, withSpring, withTiming, Easing } from 'react-native-reanimated';
 import Svg, { Circle, Defs, G, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import { useTheme } from '../theme/ThemeProvider';
 import { spring } from '../theme/tokens';
@@ -37,16 +37,17 @@ export function Ring({
 export function ProgressBar({ value, height = 8, color, warnAt = 1.0 }: { value: number; height?: number; color?: string; warnAt?: number }) {
   const p = useTheme();
   const w = useSharedValue(0);
-  const v = Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
+  const raw = Number.isFinite(value) ? value : 0;
+  // A tiny spend still shows a sliver so progress is always visible; over-budget fills the track.
+  const v = raw <= 0 ? 0 : Math.max(0.04, Math.min(1, raw));
   useEffect(() => {
     w.value = withTiming(v, { duration: 650, easing: Easing.out(Easing.cubic) });
   }, [v, w]);
-  const [width, setWidth] = React.useState(0);
-  const style = useAnimatedProps(() => ({ width: width * w.value }));
-  const fill = color ?? (value > warnAt ? p.danger : value > 0.9 ? p.warn : p.accent);
+  const style = useAnimatedStyle(() => ({ width: `${w.value * 100}%` }));
+  const fill = color ?? (raw > warnAt ? p.danger : raw > 0.9 ? p.warn : p.accent);
   return (
-    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={{ height, borderRadius: height, backgroundColor: p.sunken, overflow: 'hidden' }}>
-      <Animated.View style={[{ height, borderRadius: height, backgroundColor: fill }, style as never]} />
+    <View style={{ height, borderRadius: height, backgroundColor: p.sunken, overflow: 'hidden' }} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.round(Math.min(1, Math.max(0, raw)) * 100) }}>
+      <Animated.View style={[{ height, borderRadius: height, backgroundColor: fill }, style]} />
     </View>
   );
 }

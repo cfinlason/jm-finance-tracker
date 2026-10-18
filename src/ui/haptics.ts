@@ -1,9 +1,10 @@
+import { Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useStore } from '../data/store';
 
 const on = () => useStore.getState().settings.haptics;
 const safe = (fn: () => Promise<void>) => {
-  if (!on()) return;
+  if (Platform.OS === 'web' || !on()) return; // browsers have no haptics (navigator.vibrate just logs errors)
   fn().catch(() => undefined);
 };
 

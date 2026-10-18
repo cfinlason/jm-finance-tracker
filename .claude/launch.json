@@ -1,0 +1,1 @@
+{ "version": "0.0.1", "configurations": [ { "name": "allot-preview", "runtimeExecutable": "npx", "runtimeArgs": ["--yes", "serve", "dist", "-l", "5055", "--single"], "port": 5055 } ] }

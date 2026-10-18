@@ -7,10 +7,11 @@ import { useTheme } from '../../src/theme/ThemeProvider';
 import { radius, shadow, space } from '../../src/theme/tokens';
 import { Badge, Card, IconTile, Press, Text } from '../../src/ui/primitives';
 import { Reveal, Screen } from '../../src/ui/layout';
-import { useStore } from '../../src/data/store';
+import { useIsPremium, useStore } from '../../src/data/store';
+import { FEATURES } from '../../src/config';
 import { currentMonth } from '../../src/data/dates';
-import { moneyAuto } from '../../src/data/format';
-import { billsForMonth, fundBalances, sum } from '../../src/data/selectors';
+import { moneyAuto, moneyShort } from '../../src/data/format';
+import { billsForMonth, fundBalances, sum, toBase } from '../../src/data/selectors';
 
 function Tile({ title, value, caption, icon, premium, locked, onPress, index, width }: { title: string; value?: string; caption: string; icon: React.ReactNode; premium?: boolean; locked?: boolean; onPress: () => void; index: number; width: number }) {
   return (
@@ -18,7 +19,7 @@ function Tile({ title, value, caption, icon, premium, locked, onPress, index, wi
       <Card onPress={onPress} level={2} style={{ height: 172, justifyContent: 'space-between', gap: space.md }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <IconTile size={44}>{icon}</IconTile>
-          {premium && (locked ? <Lock size={16} color="#9AA" /> : <Badge label="PLUS" />)}
+          {FEATURES.paywall && premium && (locked ? <Lock size={16} color="#9AA" /> : <Badge label="PLUS" />)}
         </View>
         <View style={{ gap: 2 }}>
           {value ? <Text variant="moneyLg" numberOfLines={1} adjustsFontSizeToFit>{value}</Text> : null}
@@ -35,14 +36,15 @@ export default function PlanTab() {
   const router = useRouter();
   const { width: sw } = useWindowDimensions();
   const tileW = Math.floor((sw - space.xl * 2 - space.md) / 2);
-  const { funds, txs, budgets, billsPaid, debts, netEntries, isPremium } = useStore();
+  const { funds, txs, budgets, billsPaid, debts, netEntries, settings } = useStore();
+  const isPremium = useIsPremium();
   const bal = useMemo(() => fundBalances({ funds, txs, budgets }), [funds, txs, budgets]);
   const totalFunds = sum(Object.values(bal));
   const bills = useMemo(() => billsForMonth(budgets[currentMonth()], currentMonth(), billsPaid), [budgets, billsPaid]);
   const nextBill = bills.find((b) => !b.paid);
   const unpaid = bills.filter((b) => !b.paid).length;
-  const owed = sum(debts.map((d) => d.balance));
-  const nw = sum(netEntries.map((e) => (e.kind === 'asset' ? e.amount : -e.amount)));
+  const owed = sum(debts.map((d) => toBase(d.balance, d.currency, settings.currency, settings.rates)));
+  const nw = sum(netEntries.map((e) => (e.kind === 'asset' ? 1 : -1) * toBase(e.amount, e.currency, settings.currency, settings.rates)));
 
   return (
     <Screen tabBar title="Plan" subtitle="Beyond the month">
@@ -64,11 +66,11 @@ export default function PlanTab() {
       )}
 
       <View style={{ paddingHorizontal: space.xl, flexDirection: 'row', flexWrap: 'wrap', gap: space.md }}>
-        <Tile width={tileW} index={1} title="Funds" value={moneyAuto(totalFunds)} caption={funds.length ? `${funds.length} saving toward goals` : 'Save for what’s coming'} icon={<PiggyBank size={22} color={p.accentStrong} />} onPress={() => router.push('/funds')} />
+        <Tile width={tileW} index={1} title="Funds" value={moneyShort(totalFunds)} caption={funds.length ? `${funds.length} saving toward goals` : 'Save for what’s coming'} icon={<PiggyBank size={22} color={p.accentStrong} />} onPress={() => router.push('/funds')} />
         <Tile width={tileW} index={2} title="Bills" value={unpaid ? `${unpaid} due` : bills.length ? 'All paid' : undefined} caption={nextBill ? `Next: ${nextBill.item.name}, ${moneyAuto(nextBill.item.planned)}` : 'Calendar of due dates'} icon={<CalendarDays size={22} color={p.accentStrong} />} onPress={() => router.push('/bills')} />
         <Tile width={tileW} index={3} title="Paycheck planner" caption="See which bills each paycheck covers" icon={<Wallet size={22} color={p.accentStrong} />} premium locked={!isPremium} onPress={() => router.push(isPremium ? '/paycheck' : { pathname: '/paywall', params: { feature: 'paycheck' } })} />
-        <Tile width={tileW} index={4} title="Debt roadmap" value={debts.length ? moneyAuto(owed) : undefined} caption={debts.length ? 'Total owed · snowball or avalanche' : 'Snowball or avalanche payoff plan'} icon={<Flame size={22} color={p.accentStrong} />} premium locked={!isPremium} onPress={() => router.push(isPremium ? '/debt' : { pathname: '/paywall', params: { feature: 'debt' } })} />
-        <Tile width={tileW} index={5} title="Net worth" value={netEntries.length ? moneyAuto(nw) : undefined} caption="Assets minus what you owe" icon={<Landmark size={22} color={p.accentStrong} />} premium locked={!isPremium} onPress={() => router.push(isPremium ? '/networth' : { pathname: '/paywall', params: { feature: 'networth' } })} />
+        <Tile width={tileW} index={4} title="Debt roadmap" value={debts.length ? moneyShort(owed) : undefined} caption={debts.length ? 'Total owed · snowball or avalanche' : 'Snowball or avalanche payoff plan'} icon={<Flame size={22} color={p.accentStrong} />} premium locked={!isPremium} onPress={() => router.push(isPremium ? '/debt' : { pathname: '/paywall', params: { feature: 'debt' } })} />
+        <Tile width={tileW} index={5} title="Net worth" value={netEntries.length ? moneyShort(nw) : undefined} caption="Assets minus what you owe" icon={<Landmark size={22} color={p.accentStrong} />} premium locked={!isPremium} onPress={() => router.push(isPremium ? '/networth' : { pathname: '/paywall', params: { feature: 'networth' } })} />
         <Tile width={tileW} index={6} title="Reports" caption="Where it went, and the trend" icon={<ChartColumn size={22} color={p.accentStrong} />} onPress={() => router.push('/reports')} />
       </View>
     </Screen>

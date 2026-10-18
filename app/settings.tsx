@@ -7,16 +7,19 @@ import { space } from '../src/theme/tokens';
 import { Banner } from '../src/ui/feedback';
 import { Button, Field, IconTile, Press, Segmented, Text, Toggle } from '../src/ui/primitives';
 import { Group, ModalScreen, Reveal, Row } from '../src/ui/layout';
-import { useStore } from '../src/data/store';
+import { useIsPremium, useStore } from '../src/data/store';
+import { FEATURES } from '../src/config';
 import { timeLabel } from '../src/data/dates';
 import { getPermission, PermissionState, requestPermission } from '../src/services/notifications';
 import { buildCsv } from '../src/services/export';
+import { CurrencySettings } from '../src/features/CurrencySettings';
 import type { ThemePref } from '../src/data/types';
 
 export default function Settings() {
   const p = useTheme();
   const router = useRouter();
-  const { settings, setSettings, setReminders, isPremium, plan, resetAll, txs, budgets, funds } = useStore();
+  const { settings, setSettings, setReminders, plan, resetAll, txs, budgets, funds } = useStore();
+  const isPremium = useIsPremium();
   const [perm, setPerm] = useState<PermissionState>('undetermined');
   const [name, setName] = useState(settings.name);
 
@@ -54,6 +57,7 @@ export default function Settings() {
         <Field label="Your name" value={name} onChangeText={setName} onEndEditing={() => setSettings({ name: name.trim() })} placeholder="Optional" autoCapitalize="words" />
       </Reveal>
 
+      {FEATURES.paywall && (
       <Reveal index={1}>
         <Press onPress={() => router.push('/paywall')} scaleTo={0.985}>
           <Group style={{ marginHorizontal: 0 }}>
@@ -67,6 +71,7 @@ export default function Settings() {
           </Group>
         </Press>
       </Reveal>
+      )}
 
       <View style={{ gap: space.md }}>
         <Text variant="title">Reminders</Text>
@@ -94,6 +99,8 @@ export default function Settings() {
         </Group>
       </View>
 
+      <CurrencySettings />
+
       <View style={{ gap: space.md }}>
         <Text variant="title">Appearance & feel</Text>
         <Segmented<ThemePref> value={settings.theme} onChange={(v) => setSettings({ theme: v })} options={[{ value: 'system', label: 'System' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} />
@@ -106,7 +113,7 @@ export default function Settings() {
         <Text variant="title">Your data</Text>
         <Group style={{ marginHorizontal: 0 }}>
           <Row icon={<IconTile><Smartphone size={20} color={p.accentStrong} /></IconTile>} title="Stored on this device only" subtitle="No account, no cloud, works offline" />
-          <Row icon={<IconTile><Download size={20} color={p.accentStrong} /></IconTile>} title="Export transactions (CSV)" subtitle={isPremium ? 'Share a spreadsheet-ready file' : 'Included with Allot Plus'} onPress={() => void exportCsv()} right={<ChevronRight size={18} color={p.textFaint} />} last />
+          <Row icon={<IconTile><Download size={20} color={p.accentStrong} /></IconTile>} title="Export transactions (CSV)" subtitle="Share a spreadsheet-ready file" onPress={() => void exportCsv()} right={<ChevronRight size={18} color={p.textFaint} />} last />
         </Group>
       </View>
       <Button title="Erase all data" variant="danger" onPress={confirmReset} icon={<Trash size={18} color={p.danger} />} />

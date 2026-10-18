@@ -8,6 +8,9 @@ import { useTheme } from '../theme/ThemeProvider';
 import { font, Palette, radius, shadow, space, spring, type, TextVariant } from '../theme/tokens';
 import { haptic } from './haptics';
 
+// Web only: remove the browser's default focus ring; the field already shows its own accent border.
+const WEB_NO_OUTLINE = { outlineStyle: 'none', outlineWidth: 0 } as unknown as TextStyle;
+
 export type Tone = 'text' | 'muted' | 'faint' | 'accent' | 'income' | 'expense' | 'warn' | 'danger' | 'onAccent' | 'info';
 
 export const toneColor = (p: Palette, tone: Tone) =>
@@ -152,10 +155,10 @@ export function Field({
   const p = useTheme();
   const [focus, setFocus] = useState(false);
   return (
-    <View style={[{ gap: 6 }, style]}>
+    <View style={[{ gap: 6, minWidth: 0 }, style]}>
       {label ? <Text variant="overline" tone="muted">{label}</Text> : null}
       <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: p.sunken, borderRadius: radius.md, paddingHorizontal: space.lg, height: 52, borderWidth: 1.5, borderColor: error ? p.danger : focus ? p.accent : 'transparent', gap: 6 }}>
-        {prefix ? <RNText style={{ fontFamily: font.semibold, fontSize: 17, color: p.textMuted }}>{prefix}</RNText> : null}
+        {prefix ? <RNText numberOfLines={1} style={{ fontFamily: font.semibold, fontSize: 17, color: p.textMuted, flexShrink: 0 }}>{prefix}</RNText> : null}
         <TextInput
           {...rest}
           value={value}
@@ -164,7 +167,7 @@ export function Field({
           onBlur={(e) => { setFocus(false); rest.onBlur?.(e); }}
           placeholderTextColor={p.textFaint}
           selectionColor={p.accent}
-          style={{ flex: 1, fontFamily: font.medium, fontSize: 17, color: p.text, paddingVertical: 0, fontVariant: rest.keyboardType === 'decimal-pad' ? ['tabular-nums'] : undefined }}
+          style={[{ flex: 1, minWidth: 0, fontFamily: font.medium, fontSize: 17, color: p.text, paddingVertical: 0, fontVariant: rest.keyboardType === 'decimal-pad' ? ['tabular-nums'] : undefined }, WEB_NO_OUTLINE]}
         />
         {suffix ? <RNText numberOfLines={1} style={{ fontFamily: font.medium, fontSize: 15, color: p.textMuted, flexShrink: 0 }}>{suffix}</RNText> : null}
       </View>
