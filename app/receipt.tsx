@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Image, Platform, View } from 'react-native';
+import { Image, Platform, View } from 'react-native';
+import { Alert } from '../src/ui/alert';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Download, Receipt as ReceiptIcon, Trash } from 'lucide-react-native';
 import { useTheme } from '../src/theme/ThemeProvider';

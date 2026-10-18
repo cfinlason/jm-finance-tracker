@@ -23,7 +23,13 @@ App Store build: `npx eas build --platform ios --profile production` (bundle id 
 2. In **Settings → Environment Variables** add `ANTHROPIC_API_KEY` (a fresh key). Leave `EXPO_PUBLIC_DEBT_COACH_URL` unset; the web build defaults to `/api/debt-coach`.
 3. Deploy, open the URL in **Safari** on your iPhone, tap **Share → Add to Home Screen**.
 
-Web limits: no scheduled reminders (browsers can't), and data lives in that browser/home-screen app only. `npm run web:build` produces `dist/`.
+Web limits: no scheduled reminders (browsers can't), `npm run web:build` produces `dist/`.
+
+## Accounts & cloud sync (Supabase)
+
+Email + password accounts (Supabase Auth). The whole budget is one JSON document per user in `allot_user_data`; receipt photos go to a private `receipts` storage bucket under `<user id>/`. Both are locked to the owner with Row Level Security. The app keeps a local cache so it works offline and pushes changes when it can; each push carries a version number so two devices can't silently overwrite each other (newer edit wins, the other is backed up locally).
+
+One-time setup: run `supabase/migrations/20261017_allot_cloud.sql` in the Supabase SQL editor. The AI endpoints (`api/*.mjs`) accept only signed-in users: set `SUPABASE_URL` and `SUPABASE_ANON_KEY` as server environment variables so they can verify the caller's token.
 
 ## Switches & settings
 

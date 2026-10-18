@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { goBack } from '../src/ui/nav';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
+import { Alert } from '../src/ui/alert';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Trash } from 'lucide-react-native';
 import { useTheme } from '../src/theme/ThemeProvider';

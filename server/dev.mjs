@@ -22,7 +22,7 @@ http
   .createServer((req, res) => {
     // Local testing only: the web preview runs on another port, so allow cross-origin calls.
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', 'content-type, x-access-code');
+    res.setHeader('Access-Control-Allow-Headers', 'content-type, authorization, x-access-code');
     if (req.method === 'OPTIONS') {
       res.statusCode = 204;
       return res.end();

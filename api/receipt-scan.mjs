@@ -44,7 +44,7 @@ function shape(o) {
 export default async function handler(req, res) {
   const send = responder(res);
   if (req.method !== 'POST') return send(405, { error: 'POST only' });
-  if (!authorized(req)) return send(401, { error: 'Access code missing or wrong.', code: 'access_code' });
+  if (!(await authorized(req))) return send(401, { error: 'Sign in required.', code: 'access_code' });
   if (limited(clientIp(req))) return send(429, { error: 'Too many requests. Try again in a while.', code: 'busy' });
   const body = readBody(req);
   if (!body || typeof body.image !== 'string' || !TYPES.has(body.mediaType)) return send(400, { error: 'Send a JPEG, PNG or WebP image.', code: 'bad_request' });

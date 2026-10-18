@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Linking, Platform, Share, View } from 'react-native';
+import { Linking, Platform, Share, View } from 'react-native';
+import { Alert } from '../src/ui/alert';
 import { useRouter } from 'expo-router';
 import { Bell, ChevronRight, Crown, Download, FileText, Plus, ShieldCheck, Smartphone, Trash, Vibrate } from 'lucide-react-native';
 import { useTheme } from '../src/theme/ThemeProvider';
@@ -13,7 +14,8 @@ import { timeLabel } from '../src/data/dates';
 import { getPermission, PermissionState, requestPermission } from '../src/services/notifications';
 import { buildCsv } from '../src/services/export';
 import { CurrencySettings } from '../src/features/CurrencySettings';
-import { deleteReceiptImage } from '../src/services/receiptImages';
+import { AccountCard } from '../src/features/AccountCard';
+import { eraseEverything } from '../src/services/cloudSync';
 import type { ThemePref } from '../src/data/types';
 
 export default function Settings() {
@@ -47,9 +49,9 @@ export default function Settings() {
   };
 
   const confirmReset = () =>
-    Alert.alert('Erase everything?', 'This permanently deletes your budget, transactions, funds and settings from this device. It can’t be undone.', [
+    Alert.alert('Erase everything?', 'This permanently deletes your budget, transactions, funds, receipts and settings from this device and your account. It can’t be undone.', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Erase all data', style: 'destructive', onPress: () => { Object.keys(useStore.getState().receipts).forEach((rid) => void deleteReceiptImage(rid)); resetAll(); } },
+      { text: 'Erase all data', style: 'destructive', onPress: () => void eraseEverything() },
     ]);
 
   return (
@@ -100,19 +102,7 @@ export default function Settings() {
         </Group>
       </View>
 
-      <View style={{ gap: space.md }}>
-        <Text variant="title">AI access code</Text>
-        <Field
-          label="Access code"
-          value={settings.accessCode}
-          onChangeText={(t) => setSettings({ accessCode: t })}
-          placeholder="Only needed if your server asks for one"
-          autoCapitalize="none"
-          autoCorrect={false}
-          secureTextEntry
-        />
-        <Text variant="caption" tone="muted">Protects the AI coaches and receipt scanner on your own server. Leave blank if you didn’t set one.</Text>
-      </View>
+      <AccountCard />
 
       <CurrencySettings />
 

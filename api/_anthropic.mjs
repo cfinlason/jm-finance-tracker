@@ -15,11 +15,34 @@ export function limited(ip) {
   return recent.length > 12;
 }
 
+const tokenCache = new Map();
+
 /**
- * Optional shared secret. When APP_ACCESS_CODE is set on the server, every request must send the same value in
- * the x-access-code header (the app stores it in Settings). Keeps strangers who find the URL from spending the key.
+ * Who may call the AI endpoints.
+ *  - With SUPABASE_URL + SUPABASE_ANON_KEY set (production), the caller must send a valid signed-in user's token
+ *    (Authorization: Bearer <access token>); Supabase confirms it. Only account holders can spend the key.
+ *  - Otherwise, if APP_ACCESS_CODE is set, the x-access-code header must match it (local/dev fallback).
+ *  - Otherwise the endpoint is open (local testing).
  */
-export function authorized(req) {
+export async function authorized(req) {
+  const url = process.env.SUPABASE_URL;
+  const anon = process.env.SUPABASE_ANON_KEY;
+  if (url && anon) {
+    const header = String(req.headers['authorization'] || '');
+    const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+    if (!token) return false;
+    const hit = tokenCache.get(token);
+    if (hit && hit > Date.now()) return true;
+    try {
+      const r = await fetch(`${url}/auth/v1/user`, { headers: { apikey: anon, Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(8000) });
+      if (!r.ok) return false;
+      if (tokenCache.size > 500) tokenCache.clear();
+      tokenCache.set(token, Date.now() + 60_000);
+      return true;
+    } catch {
+      return false;
+    }
+  }
   const need = process.env.APP_ACCESS_CODE;
   if (!need) return true;
   const got = String(req.headers['x-access-code'] || '');

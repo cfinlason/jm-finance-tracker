@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { useStore } from '../data/store';
+import { supabase } from './supabase';
 
 /** Base URL for the serverless functions: same origin on the web build, or the configured host in dev. */
 export function apiUrl(name: 'debt-coach' | 'budget-coach' | 'receipt-scan'): string {
@@ -11,8 +11,9 @@ export function apiUrl(name: 'debt-coach' | 'budget-coach' | 'receipt-scan'): st
   return Platform.OS === 'web' ? `/api/${name}` : '';
 }
 
-/** Headers for every API call, including the optional access code the owner set in Settings. */
-export function apiHeaders(): Record<string, string> {
-  const code = useStore.getState().settings.accessCode?.trim();
-  return code ? { 'content-type': 'application/json', 'x-access-code': code } : { 'content-type': 'application/json' };
+/** Headers for every API call. The signed-in user's token proves who is asking, so only account holders can use the AI. */
+export async function apiHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { 'content-type': 'application/json', Authorization: `Bearer ${token}` } : { 'content-type': 'application/json' };
 }

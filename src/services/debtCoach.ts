@@ -47,14 +47,14 @@ export async function askDebtCoach(debts: Debt[], extra: number, currency = 'USD
 
   let res: Response;
   try {
-    res = await fetch(COACH_URL, { method: 'POST', headers: apiHeaders(), body: JSON.stringify(body), signal: AbortSignal.timeout(58_000) });
+    res = await fetch(COACH_URL, { method: 'POST', headers: await apiHeaders(), body: JSON.stringify(body), signal: AbortSignal.timeout(58_000) });
   } catch {
     throw new CoachError('offline', 'Couldn’t reach the coach. Check your connection and try again.');
   }
   if (res.ok === false) {
     let code = '';
     try { code = ((await res.json()) as { code?: string }).code ?? ''; } catch { /* non-JSON error page */ }
-    if (code === 'access_code') throw new CoachError('not_configured', 'Enter your access code in Settings → AI access code.');
+    if (code === 'access_code') throw new CoachError('not_configured', 'Your sign-in expired. Sign out and back in, then try again.');
     if (res.status === 429 || code === 'busy') throw new CoachError('busy', 'You’ve asked a lot in a short time. Try again in a bit.');
     if (res.status === 404) throw new CoachError('not_configured', 'The coach server wasn’t found. It needs to be deployed with the app.');
     if (code === 'not_configured' || code === 'bad_key') throw new CoachError('not_configured', 'The coach server is running but its AI key isn’t set up (or was rejected).');

@@ -19,6 +19,8 @@ import { useStore } from '../src/data/store';
 import { currentMonth } from '../src/data/dates';
 import { CelebrationHost, ScreenSkeleton, UndoHost } from '../src/ui/feedback';
 import { collectBills, syncNotifications } from '../src/services/notifications';
+import { useAuth } from '../src/data/auth';
+import { startSync, stopSync, useSync } from '../src/services/cloudSync';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -29,19 +31,38 @@ function Root() {
   const reminders = useStore((s) => s.settings.reminders);
   const billReminders = useStore((s) => s.settings.billReminders);
   const budget = useStore((s) => s.budgets[currentMonth()]);
+  const authStatus = useAuth((s) => s.status);
+  const userId = useAuth((s) => s.user?.id ?? null);
+  const bootstrapped = useSync((s) => s.bootstrapped);
+  const [waited, setWaited] = React.useState(false);
+  const signedIn = authStatus === 'signedIn';
+
+  // Start watching the session once, and run cloud sync for as long as someone is signed in.
+  useEffect(() => useAuth.getState().init(), []);
+  useEffect(() => {
+    if (userId) void startSync(userId);
+    else stopSync();
+    return () => stopSync();
+  }, [userId]);
+  // Never trap the user on the loading screen if the first fetch hangs: after 8s show the cached copy.
+  useEffect(() => {
+    if (!signedIn || bootstrapped) return;
+    const t = setTimeout(() => setWaited(true), 8000);
+    return () => clearTimeout(t);
+  }, [signedIn, bootstrapped]);
 
   // Keep scheduled notifications in lockstep with settings and the current month's bills.
   useEffect(() => {
-    if (!hydrated || !onboarded) return;
+    if (!hydrated || !onboarded || !signedIn) return;
     void syncNotifications(reminders, collectBills(budget), billReminders);
-  }, [hydrated, onboarded, reminders, billReminders, budget]);
+  }, [hydrated, onboarded, signedIn, reminders, billReminders, budget]);
 
   // Make sure the current month always has a plan (carried forward from the last one).
   useEffect(() => {
-    if (hydrated && onboarded) useStore.getState().ensureBudget(currentMonth());
-  }, [hydrated, onboarded]);
+    if (hydrated && onboarded && signedIn && bootstrapped) useStore.getState().ensureBudget(currentMonth());
+  }, [hydrated, onboarded, signedIn, bootstrapped]);
 
-  if (!hydrated) {
+  if (!hydrated || authStatus === 'loading' || (signedIn && !bootstrapped && !waited)) {
     return (
       <View style={{ flex: 1, backgroundColor: p.bg, paddingTop: 80 }}>
         <ScreenSkeleton />
@@ -54,10 +75,13 @@ function Root() {
     <View style={{ flex: 1, backgroundColor: p.bg }}>
       <StatusBar style={p.mode === 'dark' ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: p.bg } }}>
-        <Stack.Protected guard={!onboarded}>
+        <Stack.Protected guard={!signedIn}>
+          <Stack.Screen name="auth" options={{ animation: 'fade' }} />
+        </Stack.Protected>
+        <Stack.Protected guard={signedIn && !onboarded}>
           <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
         </Stack.Protected>
-        <Stack.Protected guard={onboarded}>
+        <Stack.Protected guard={signedIn && onboarded}>
           <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
           <Stack.Screen name="add" options={modal} />
           <Stack.Screen name="paywall" options={{ ...modal, gestureEnabled: false }} />

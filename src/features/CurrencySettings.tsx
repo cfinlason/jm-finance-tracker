@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
+import { Alert } from '../ui/alert';
 import { Trash } from 'lucide-react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { space } from '../theme/tokens';

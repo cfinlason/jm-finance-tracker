@@ -107,6 +107,9 @@ const initial = (): State => ({
   settings: { theme: 'system', reminders: defaultReminders(), haptics: true, billReminders: true, coachConsent: false, accessCode: '', currency: 'USD', rates: {}, goals: [], name: '' },
 });
 
+/** Fresh, empty app state (used by sign-out and cloud sync). */
+export const initialState = initial;
+
 /** Consecutive-day streak ending today or yesterday. */
 export function computeStreak(activity: string[]): number {
   const set = new Set(activity);

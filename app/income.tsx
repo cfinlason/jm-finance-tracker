@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
+import { Alert } from '../src/ui/alert';
 import { useLocalSearchParams } from 'expo-router';
 import { ArrowDownLeft, Plus, Trash } from 'lucide-react-native';
 import { useTheme } from '../src/theme/ThemeProvider';
