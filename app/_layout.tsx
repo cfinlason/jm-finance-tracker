@@ -65,6 +65,8 @@ function Root() {
           <Stack.Screen name="group" options={modal} />
           <Stack.Screen name="income" options={modal} />
           <Stack.Screen name="budget-coach" options={modal} />
+          <Stack.Screen name="receipts" />
+          <Stack.Screen name="receipt" />
           <Stack.Screen name="fund-edit" options={modal} />
           <Stack.Screen name="debt-edit" options={modal} />
           <Stack.Screen name="net-edit" options={modal} />

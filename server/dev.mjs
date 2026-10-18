@@ -15,13 +15,14 @@ if (existsSync(envFile)) {
 const routes = {
   '/api/debt-coach': (await import('../api/debt-coach.mjs')).default,
   '/api/budget-coach': (await import('../api/budget-coach.mjs')).default,
+  '/api/receipt-scan': (await import('../api/receipt-scan.mjs')).default,
 };
 
 http
   .createServer((req, res) => {
     // Local testing only: the web preview runs on another port, so allow cross-origin calls.
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', 'content-type');
+    res.setHeader('Access-Control-Allow-Headers', 'content-type, x-access-code');
     if (req.method === 'OPTIONS') {
       res.statusCode = 204;
       return res.end();

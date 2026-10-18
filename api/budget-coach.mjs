@@ -1,6 +1,6 @@
 // Budget coach: suggests a zero-based allocation of the user's income that also minimises debt cost.
 // The app sends its own numbers and validates every suggested amount before anything is applied.
-import { askClaude, clientIp, extractJson, failure, isNum, limited, readBody, responder } from './_anthropic.mjs';
+import { askClaude, authorized, clientIp, extractJson, failure, isNum, limited, readBody, responder } from './_anthropic.mjs';
 
 const MAX_LINES = 60;
 
@@ -50,6 +50,7 @@ function shape(o, lineCount) {
 export default async function handler(req, res) {
   const send = responder(res);
   if (req.method !== 'POST') return send(405, { error: 'POST only' });
+  if (!authorized(req)) return send(401, { error: 'Access code missing or wrong.', code: 'access_code' });
   if (limited(clientIp(req))) return send(429, { error: 'Too many requests. Try again in a while.', code: 'busy' });
   const body = readBody(req);
   const bad = validate(body);

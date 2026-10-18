@@ -15,6 +15,20 @@ export function limited(ip) {
   return recent.length > 12;
 }
 
+/**
+ * Optional shared secret. When APP_ACCESS_CODE is set on the server, every request must send the same value in
+ * the x-access-code header (the app stores it in Settings). Keeps strangers who find the URL from spending the key.
+ */
+export function authorized(req) {
+  const need = process.env.APP_ACCESS_CODE;
+  if (!need) return true;
+  const got = String(req.headers['x-access-code'] || '');
+  if (got.length !== need.length) return false;
+  let diff = 0;
+  for (let i = 0; i < need.length; i++) diff |= need.charCodeAt(i) ^ got.charCodeAt(i);
+  return diff === 0;
+}
+
 export function clientIp(req) {
   return String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim();
 }
@@ -43,14 +57,14 @@ export function readBody(req) {
 }
 
 /** Calls Claude and returns the text. Throws { status, code } style errors the handlers translate. */
-export async function askClaude({ system, user, maxTokens = 900 }) {
+export async function askClaude({ system, user, image, maxTokens = 900 }) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw Object.assign(new Error('missing key'), { code: 'not_configured' });
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: MODEL, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] }),
-    signal: AbortSignal.timeout(50_000),
+    body: JSON.stringify({ model: MODEL, max_tokens: maxTokens, system, messages: [{ role: 'user', content: image ? [{ type: 'image', source: { type: 'base64', media_type: image.mediaType, data: image.data } }, { type: 'text', text: user }] : user }] }),
+    signal: AbortSignal.timeout(55_000),
   });
   if (!r.ok) {
     const detail = (await r.text()).slice(0, 300);

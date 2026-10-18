@@ -1,9 +1,7 @@
-import { Platform } from 'react-native';
 import { round2 } from '../data/format';
+import { apiHeaders, apiUrl } from './api';
 
-export const BUDGET_COACH_URL =
-  (process.env.EXPO_PUBLIC_BUDGET_COACH_URL as string | undefined) ??
-  (process.env.EXPO_PUBLIC_DEBT_COACH_URL ? process.env.EXPO_PUBLIC_DEBT_COACH_URL.replace('debt-coach', 'budget-coach') : Platform.OS === 'web' ? '/api/budget-coach' : '');
+export const BUDGET_COACH_URL = apiUrl('budget-coach');
 
 export type CoachLine = { i: number; id: string; group: string; name: string; planned: number; lastMonthSpent?: number; isFund?: boolean };
 export type DebtSummary = { count: number; totalOwed: number; totalMinimums: number; highestApr: number };
@@ -23,13 +21,14 @@ export async function askBudgetCoach(input: CoachInput): Promise<BudgetPlan> {
   const body = { income: input.income, currency: input.currency, goals: input.goals, debts: input.debts, lines: input.lines.map(({ i, group, name, planned, lastMonthSpent, isFund }) => ({ i, group, name, planned, lastMonthSpent, isFund })) };
   let res: Response;
   try {
-    res = await fetch(BUDGET_COACH_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(55_000) });
+    res = await fetch(BUDGET_COACH_URL, { method: 'POST', headers: apiHeaders(), body: JSON.stringify(body), signal: AbortSignal.timeout(58_000) });
   } catch {
     throw new BudgetCoachError('offline', 'Couldn’t reach the coach. Check your connection.');
   }
   if (!res.ok) {
     let code = '';
     try { code = ((await res.json()) as { code?: string }).code ?? ''; } catch { /* html error page */ }
+    if (code === 'access_code') throw new BudgetCoachError('not_configured', 'Enter your access code in Settings → AI access code.');
     if (res.status === 429 || code === 'busy') throw new BudgetCoachError('busy', 'You’ve asked a lot in a short time. Try again in a bit.');
     if (res.status === 404) throw new BudgetCoachError('not_configured', 'The coach server wasn’t found. It needs to be deployed with the app.');
     if (code === 'not_configured' || code === 'bad_key') throw new BudgetCoachError('not_configured', 'The coach server is running but its AI key isn’t set up (or was rejected).');

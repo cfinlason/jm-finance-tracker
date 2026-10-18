@@ -6,7 +6,7 @@ import { CURRENCIES, CurrencyCode, round2, uid } from './format';
 import { buildStarter, TemplateId } from './templates';
 import { FEATURES } from '../config';
 import {
-  Budget, BudgetItem, Debt, Fund, Goal, Group, IconKey, ID, IncomeLine, NetEntry, NetSnapshot, PlanId, Reminder, Settings, Tx,
+  Budget, BudgetItem, Debt, Fund, Goal, Group, IconKey, ID, IncomeLine, NetEntry, NetSnapshot, PlanId, Receipt, Reminder, Settings, Tx,
 } from './types';
 
 export type State = {
@@ -22,6 +22,7 @@ export type State = {
   debts: Debt[];
   netEntries: NetEntry[];
   netHistory: NetSnapshot[];
+  receipts: Record<ID, Receipt>;
   billsPaid: Record<string, boolean>; // `${month}:${itemId}`
   activity: string[]; // dates with at least one logged transaction
   dismissedTips: string[];
@@ -62,6 +63,8 @@ type Actions = {
   removeNetEntry: (id: ID) => void;
   togglePaid: (month: string, itemId: ID) => void;
   setSettings: (patch: Partial<Settings>) => void;
+  saveReceipt: (r: Receipt) => void;
+  removeReceipt: (id: ID) => void;
   setRate: (code: string, perUnit: number) => void;
   removeRate: (code: string) => void;
   setReminders: (r: Reminder[]) => void;
@@ -95,12 +98,13 @@ const initial = (): State => ({
   debts: [],
   netEntries: [],
   netHistory: [],
+  receipts: {},
   billsPaid: {},
   activity: [],
   dismissedTips: [],
   readArticles: [],
   undo: null,
-  settings: { theme: 'system', reminders: defaultReminders(), haptics: true, billReminders: true, coachConsent: false, currency: 'USD', rates: {}, goals: [], name: '' },
+  settings: { theme: 'system', reminders: defaultReminders(), haptics: true, billReminders: true, coachConsent: false, accessCode: '', currency: 'USD', rates: {}, goals: [], name: '' },
 });
 
 /** Consecutive-day streak ending today or yesterday. */
@@ -273,6 +277,13 @@ export const useStore = create<State & Actions>()(
         }),
 
       setSettings: (patch) => set((s) => ({ settings: { ...s.settings, ...patch } })),
+      saveReceipt: (r) => set((s) => ({ receipts: { ...s.receipts, [r.id]: r } })),
+      removeReceipt: (id) =>
+        set((s) => {
+          const receipts = { ...s.receipts };
+          delete receipts[id];
+          return { receipts, txs: s.txs.map((t) => (t.receiptId === id ? { ...t, receiptId: undefined } : t)) };
+        }),
       setRate: (code, perUnit) => set((s) => ({ settings: { ...s.settings, rates: { ...s.settings.rates, [code]: { perUnit, updated: todayISO() } } } })),
       removeRate: (code) => set((s) => { const rates = { ...s.settings.rates }; delete rates[code]; return { settings: { ...s.settings, rates } }; }),
       setReminders: (reminders) => set((s) => ({ settings: { ...s.settings, reminders } })),

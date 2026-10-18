@@ -31,6 +31,13 @@
         {
           "color": "#14B88A"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allot uses the camera so you can scan receipts.",
+          "photosPermission": "Allot lets you pick receipt photos to scan and keep."
+        }
       ]
     ],
     "web": {

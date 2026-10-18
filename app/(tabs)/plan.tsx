@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { CalendarDays, ChartColumn, ChevronRight, Crown, Flame, Landmark, Lock, PiggyBank, Wallet } from 'lucide-react-native';
+import { CalendarDays, ChartColumn, ChevronRight, Crown, Flame, Landmark, Lock, PiggyBank, ScanLine, Wallet } from 'lucide-react-native';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { radius, shadow, space } from '../../src/theme/tokens';
 import { Badge, Card, IconTile, Press, Text } from '../../src/ui/primitives';
@@ -38,6 +38,7 @@ export default function PlanTab() {
   const tileW = Math.floor((sw - space.xl * 2 - space.md) / 2);
   const { funds, txs, budgets, billsPaid, debts, netEntries, settings } = useStore();
   const isPremium = useIsPremium();
+  const receiptCount = Object.keys(useStore((s) => s.receipts)).length;
   const bal = useMemo(() => fundBalances({ funds, txs, budgets }), [funds, txs, budgets]);
   const totalFunds = sum(Object.values(bal));
   const bills = useMemo(() => billsForMonth(budgets[currentMonth()], currentMonth(), billsPaid), [budgets, billsPaid]);
@@ -71,6 +72,7 @@ export default function PlanTab() {
         <Tile width={tileW} index={3} title="Paycheck planner" caption="See which bills each paycheck covers" icon={<Wallet size={22} color={p.accentStrong} />} premium locked={!isPremium} onPress={() => router.push(isPremium ? '/paycheck' : { pathname: '/paywall', params: { feature: 'paycheck' } })} />
         <Tile width={tileW} index={4} title="Debt roadmap" value={debts.length ? moneyShort(owed) : undefined} caption={debts.length ? 'Total owed · snowball or avalanche' : 'Snowball or avalanche payoff plan'} icon={<Flame size={22} color={p.accentStrong} />} premium locked={!isPremium} onPress={() => router.push(isPremium ? '/debt' : { pathname: '/paywall', params: { feature: 'debt' } })} />
         <Tile width={tileW} index={5} title="Net worth" value={netEntries.length ? moneyShort(nw) : undefined} caption="Assets minus what you owe" icon={<Landmark size={22} color={p.accentStrong} />} premium locked={!isPremium} onPress={() => router.push(isPremium ? '/networth' : { pathname: '/paywall', params: { feature: 'networth' } })} />
+        <Tile width={tileW} index={7} title="Receipts" value={receiptCount ? String(receiptCount) : undefined} caption={receiptCount ? "Scanned copies · what you buy most" : "Scan and keep your receipts"} icon={<ScanLine size={22} color={p.accentStrong} />} onPress={() => router.push("/receipts")} />
         <Tile width={tileW} index={6} title="Reports" caption="Where it went, and the trend" icon={<ChartColumn size={22} color={p.accentStrong} />} onPress={() => router.push('/reports')} />
       </View>
     </Screen>

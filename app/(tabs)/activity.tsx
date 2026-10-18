@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowDownLeft, ChevronLeft, ChevronRight, Receipt, Search, PiggyBank, SearchX } from 'lucide-react-native';
+import { ArrowDownLeft, Paperclip, ChevronLeft, ChevronRight, Receipt, Search, PiggyBank, SearchX } from 'lucide-react-native';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { font, radius, space } from '../../src/theme/tokens';
 import { Card, Chip, IconTile, Press, Text } from '../../src/ui/primitives';
@@ -117,7 +117,10 @@ export default function Activity() {
                       <Press onPress={() => router.push({ pathname: '/add', params: { id: t.id } })} scaleTo={0.985} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg }}>
                         <IconTile tone={info.tone}>{info.icon}</IconTile>
                         <View style={{ flex: 1 }}>
-                          <Text variant="bodyStrong" numberOfLines={1}>{info.title}</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text variant="bodyStrong" numberOfLines={1} style={{ flexShrink: 1 }}>{info.title}</Text>
+                            {t.receiptId ? <Paperclip size={14} color={p.textFaint} /> : null}
+                          </View>
                           <Text variant="caption" tone="muted" numberOfLines={1}>{info.sub}{t.note ? ` · ${t.note}` : ''}</Text>
                         </View>
                         <Text variant="money" tone={t.kind === 'income' ? 'income' : t.kind.startsWith('fund') ? 'info' : 'text'}>

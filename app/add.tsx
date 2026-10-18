@@ -9,11 +9,16 @@ import { Badge, Button, Card, Chip, Field, Press, Segmented, Text } from '../src
 import { Icon } from '../src/ui/Icon';
 import { AmountPad } from '../src/ui/AmountPad';
 import { ModalScreen } from '../src/ui/layout';
+import { Receipt as ReceiptIcon } from 'lucide-react-native';
+import { Captured, ReceiptScanCard } from '../src/features/ReceiptScanCard';
+import { putReceiptImage } from '../src/services/receiptImages';
+import type { ScanResult } from '../src/services/receiptScan';
+import type { Receipt } from '../src/data/types';
 import { useCelebration } from '../src/ui/feedback';
 import { haptic } from '../src/ui/haptics';
 import { useStore } from '../src/data/store';
 import { addDays, currentMonth, monthKey, prettyDate, todayISO } from '../src/data/dates';
-import { money, moneyAuto, parseAmount, round2, sym, groupAmount } from '../src/data/format';
+import { money, moneyAuto, parseAmount, round2, sym, groupAmount, uid } from '../src/data/format';
 import { fundBalances, summarizeMonth } from '../src/data/selectors';
 import type { Split, TxKind } from '../src/data/types';
 
@@ -23,7 +28,7 @@ export default function AddTransaction() {
   const p = useTheme();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { txs, budgets, funds, addTx, updateTx, removeTx, deleteWithUndo } = useStore();
+  const { txs, budgets, funds, addTx, updateTx, removeTx, deleteWithUndo, saveReceipt, settings } = useStore();
   const editing = id ? txs.find((t) => t.id === id) : undefined;
   const fire = useCelebration((s) => s.fire);
 
@@ -41,6 +46,7 @@ export default function AddTransaction() {
   );
   const [pickRow, setPickRow] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [captured, setCaptured] = useState<Captured | null>(null);
 
   const month = monthKey(date);
   const budget = budgets[month] ?? budgets[currentMonth()];
@@ -67,6 +73,23 @@ export default function AddTransaction() {
     } else setTarget(tid);
   };
 
+  // Fill the form from a scanned receipt, and pre-pick the most likely budget line.
+  const applyScan = (r: ScanResult) => {
+    if (r.total !== null) setAmount(String(r.total));
+    if (r.merchant && !merchant.trim()) setMerchant(r.merchant);
+    if (r.date && r.date <= todayISO()) setDate(r.date);
+    setSplit(false);
+    const cats = new Set(r.items.map((i) => i.category));
+    const lines = (budget?.groups ?? []).flatMap((g) => g.items);
+    const find = (re: RegExp) => lines.find((l) => re.test(l.name))?.id ?? null;
+    const guess =
+      (['groceries', 'produce', 'dairy', 'meat', 'bakery'].some((c) => cats.has(c)) ? find(/grocer|food|supermarket/i) : null) ??
+      (cats.has('dining') ? find(/eating|dining|restaurant/i) : null) ??
+      (cats.has('fuel') ? find(/gas|fuel|transit|transport/i) : null) ??
+      (cats.has('household') || cats.has('personal care') ? find(/household|personal|basics|home/i) : null);
+    if (guess && !target) setTarget(guess);
+  };
+
   const save = () => {
     setError(null);
     if (total <= 0) return setError('Enter an amount greater than zero.');
@@ -91,7 +114,26 @@ export default function AddTransaction() {
       if (!target) return setError('Choose a fund.');
       splits = [{ id: target, amount: total }];
     }
-    const payload = { date, kind, merchant: merchant.trim(), note: note.trim() || undefined, amount: total, splits };
+    let receiptId = editing?.receiptId;
+    if (captured && mode === 'expense') {
+      receiptId = uid('rcp');
+      const r = captured.result;
+      const rec: Receipt = {
+        id: receiptId,
+        date,
+        merchant: merchant.trim() || r?.merchant || 'Receipt',
+        total,
+        tax: r?.tax ?? undefined,
+        currency: settings.currency,
+        items: r?.items ?? [],
+        hasImage: true,
+        scannedAt: new Date().toISOString(),
+        notes: r?.notes ?? undefined,
+      };
+      saveReceipt(rec);
+      void putReceiptImage(receiptId, captured.image.dataUrl); // the original photo, kept on this device
+    }
+    const payload = { date, kind, merchant: merchant.trim(), note: note.trim() || undefined, amount: total, splits, receiptId };
     if (editing) {
       updateTx(editing.id, payload);
       haptic.success();
@@ -165,6 +207,14 @@ export default function AddTransaction() {
       }
     >
       <Segmented<Mode> value={mode} onChange={(m) => { setMode(m); setTarget(null); setSplit(false); setPickRow(null); setError(null); }} options={[{ value: 'expense', label: 'Spent' }, { value: 'income', label: 'Income' }, { value: 'fund', label: 'Fund' }]} />
+
+      {mode === 'expense' && !(editing?.receiptId && !captured) ? <ReceiptScanCard value={captured} onChange={setCaptured} onScanned={applyScan} /> : null}
+      {mode === 'expense' && editing?.receiptId && !captured ? (
+        <Press onPress={() => router.push({ pathname: '/receipt', params: { id: editing.receiptId } })} scaleTo={0.985} style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg, borderRadius: radius.lg, backgroundColor: p.accentSoft }}>
+          <ReceiptIcon size={22} color={p.accentStrong} />
+          <Text variant="bodyStrong" style={{ flex: 1 }}>Receipt attached — view or download</Text>
+        </Press>
+      ) : null}
 
       <View style={{ alignItems: 'center', paddingVertical: space.md }}>
         <Text variant="overline" tone="muted">Amount</Text>

@@ -13,6 +13,7 @@ import { timeLabel } from '../src/data/dates';
 import { getPermission, PermissionState, requestPermission } from '../src/services/notifications';
 import { buildCsv } from '../src/services/export';
 import { CurrencySettings } from '../src/features/CurrencySettings';
+import { deleteReceiptImage } from '../src/services/receiptImages';
 import type { ThemePref } from '../src/data/types';
 
 export default function Settings() {
@@ -48,7 +49,7 @@ export default function Settings() {
   const confirmReset = () =>
     Alert.alert('Erase everything?', 'This permanently deletes your budget, transactions, funds and settings from this device. It can’t be undone.', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Erase all data', style: 'destructive', onPress: () => resetAll() },
+      { text: 'Erase all data', style: 'destructive', onPress: () => { Object.keys(useStore.getState().receipts).forEach((rid) => void deleteReceiptImage(rid)); resetAll(); } },
     ]);
 
   return (
@@ -97,6 +98,20 @@ export default function Settings() {
         <Group style={{ marginHorizontal: 0 }}>
           <Row icon={<IconTile><FileText size={20} color={p.accentStrong} /></IconTile>} title="Bill due-date alerts" subtitle="The day before, at 9 AM" right={<Toggle value={settings.billReminders} onChange={(v) => setSettings({ billReminders: v })} />} last />
         </Group>
+      </View>
+
+      <View style={{ gap: space.md }}>
+        <Text variant="title">AI access code</Text>
+        <Field
+          label="Access code"
+          value={settings.accessCode}
+          onChangeText={(t) => setSettings({ accessCode: t })}
+          placeholder="Only needed if your server asks for one"
+          autoCapitalize="none"
+          autoCorrect={false}
+          secureTextEntry
+        />
+        <Text variant="caption" tone="muted">Protects the AI coaches and receipt scanner on your own server. Leave blank if you didn’t set one.</Text>
       </View>
 
       <CurrencySettings />

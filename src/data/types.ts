@@ -21,6 +21,22 @@ export type Tx = {
   note?: string;
   amount: number;
   splits: Split[]; // expense → item ids, income → income ids, fund_* → fund id
+  receiptId?: ID;
+};
+
+export type ReceiptItem = { name: string; canonical: string; category: string; qty: number; price: number };
+/** A scanned receipt. The photo itself lives in receipt image storage under the same id. */
+export type Receipt = {
+  id: ID;
+  date: string; // purchase date, YYYY-MM-DD
+  merchant: string;
+  total: number;
+  tax?: number;
+  currency?: string;
+  items: ReceiptItem[];
+  hasImage: boolean;
+  scannedAt: string;
+  notes?: string;
 };
 
 export type Fund = { id: ID; name: string; icon: IconKey; goal: number; opening: number; targetDate?: string };
@@ -41,6 +57,7 @@ export type Settings = {
   haptics: boolean;
   billReminders: boolean;
   coachConsent: boolean;
+  accessCode: string;
   currency: string;
   rates: Record<string, Rate>;
   goals: Goal[];

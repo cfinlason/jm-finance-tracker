@@ -13,6 +13,7 @@ const DOCS = {
       ['Notifications', 'Reminders are scheduled locally on your device. No push service is involved and nothing is sent to us.'],
       ['Purchases', 'Allot Plus is offered as an auto-renewing subscription handled by the App Store. In this build the purchase flow is a demonstration and no payment information is collected.'],
       ['AI debt coach (optional)', 'If you tap “Map my fastest way out” in the debt roadmap, your debt balances, interest rates, minimum payments and the extra amount you chose are sent through our server to Claude, an AI model from Anthropic, to write a payoff plan. Debt names are replaced with neutral labels before sending. Nothing is sent unless you tap the button, and the server does not store the request.'],
+      ['Receipt scanning (optional)', 'If you scan a receipt, the photo is sent through our server to Claude to read the items and total, then discarded. Nothing is stored on the server. The original photo and the scanned items are saved only on your device, and you can delete any receipt at any time. Erasing all data removes them too.'],
       ['Export', 'If you export a CSV, it goes wherever you choose to share it. Allot does not transmit it anywhere itself.'],
       ['Questions', 'If you have any questions about privacy, contact the developer through the App Store listing.'],
     ],

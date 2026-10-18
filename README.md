@@ -31,6 +31,12 @@ Web limits: no scheduled reminders (browsers can't), and data lives in that brow
 - Settings → Currency: pick the main currency and enter your own exchange rates for foreign debts/accounts (kept offline, no live rate feed).
 - Deleting a line, group, debt, fund, income, entry or transaction shows an **Undo** toast.
 
+## Receipts (Claude vision)
+
+Add transaction → **Scan a receipt** (camera or photo). `api/receipt-scan.mjs` reads the store, date, total and line items; the form fills itself in and you confirm. The **original photo is kept on the device** (IndexedDB on the web build, AsyncStorage on native) and the items are saved with the transaction. Plan → **Receipts** lists every digital copy (view / download / delete) and a **What I buy** view: most-bought items, where the money goes, items you've stopped buying, price changes and stores. Photos are not stored on the server.
+
+Optional lock: set `APP_ACCESS_CODE` on the server and enter the same code in Settings → AI access code, so strangers who find the URL can't spend your key.
+
 ## Debt coach & Budget coach (Claude)
 
 Two coaches share one proxy: `api/debt-coach.mjs` (payoff plan) and `api/budget-coach.mjs` (suggests a zero-based allocation of your income that minimises debt cost; you review and apply). If the server isn't reachable the app falls back to an offline rule-based plan and says why. The debt roadmap computes payoff dates exactly in the app; the optional **Ask the debt coach** button sends those figures (debt names replaced by "Debt A/B…") to a small proxy in `server/`, which calls Claude and returns a written plan. The Anthropic key lives only in `server/.env` (git-ignored) and is never bundled in the app.
