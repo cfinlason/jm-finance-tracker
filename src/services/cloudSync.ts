@@ -79,6 +79,27 @@ function chooseLocal(): Promise<boolean> {
   });
 }
 
+/** A brand-new account on a device that already holds a budget: bring it along, or start fresh? */
+function askBringLocal(): Promise<boolean> {
+  const title = 'Bring this device’s budget into your new account?';
+  const msg = 'This device already has budget data. You can save it to your new account, or start with a clean slate.';
+  return new Promise((resolve) => {
+    if (Platform.OS === 'web') {
+      resolve(window.confirm(`${title}
+
+${msg}
+
+OK = bring it into my account
+Cancel = start fresh (this device’s data is erased)`));
+      return;
+    }
+    Alert.alert(title, msg, [
+      { text: 'Start fresh', style: 'destructive', onPress: () => resolve(false) },
+      { text: 'Bring it along', onPress: () => resolve(true) },
+    ]);
+  });
+}
+
 // ---- engine state ----------------------------------------------------------------------------
 
 let userId: string | null = null;
@@ -217,12 +238,13 @@ export async function startSync(id: string): Promise<void> {
   try {
     const row = await fetchRow();
     if (!row) {
-      if (hasLocalData()) {
+      if (hasLocalData() && (await askBringLocal())) {
         // Data created before accounts existed: it becomes this account's first cloud copy.
         meta = { userId: id, version: 0, hash: '', changedAt: new Date().toISOString() };
         await queueUploads(Object.keys(useStore.getState().receipts));
         await pushNow();
       } else {
+        if (hasLocalData()) await wipeLocal(); // they chose a fresh start
         meta = { userId: id, version: 0, hash: hashOf(snapshot()), changedAt: new Date().toISOString() };
         await saveMeta();
       }
