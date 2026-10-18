@@ -48,3 +48,6 @@ yarn-error.*
 server/.env
 server/node_modules/
 .vercel/
+
+.vercel
+.env*

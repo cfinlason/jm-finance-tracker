@@ -1,0 +1,10 @@
+node_modules
+dist
+dist-ios
+.expo
+.superpowers
+.claude
+server/.env
+.env
+.env.local
+server/node_modules
