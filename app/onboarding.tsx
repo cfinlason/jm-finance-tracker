@@ -20,6 +20,7 @@ import { FEATURES } from '../src/config';
 import { currentMonth } from '../src/data/dates';
 import { CURRENCIES, CURRENCY_LIST, CurrencyCode, money, parseAmount, setCurrency as setActiveCurrency, sym } from '../src/data/format';
 import { requestPermission } from '../src/services/notifications';
+import { joinHousehold } from '../src/services/cloudSync';
 import { haptic } from '../src/ui/haptics';
 
 const STEPS = 6;
@@ -31,6 +32,36 @@ function Float({ children, delay = 0, amp = 8 }: { children: React.ReactNode; de
   }, [y, amp, delay]);
   const a = useAnimatedStyle(() => ({ transform: [{ translateY: y.value }] }));
   return <Animated.View style={a}>{children}</Animated.View>;
+}
+
+/** Someone invited you to their shared budget? Enter the code and skip setup. */
+function JoinWithCode() {
+  const p = useTheme();
+  const [open, setOpen] = useState(false);
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const go = async () => {
+    setError(null);
+    setBusy(true);
+    const res = await joinHousehold(code);
+    setBusy(false);
+    if (res.error) setError(res.error);
+  };
+  if (!open) {
+    return (
+      <Press onPress={() => setOpen(true)} hitSlop={10} style={{ alignSelf: 'center', paddingVertical: space.sm }}>
+        <Text variant="callout" tone="accent">Joining a family budget? Use an invite code</Text>
+      </Press>
+    );
+  }
+  return (
+    <View style={{ gap: space.sm }}>
+      <Field label="Invite code" value={code} onChangeText={(t) => setCode(t.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8))} placeholder="8-character code" autoCapitalize="characters" autoCorrect={false} />
+      {error ? <Text variant="callout" tone="danger">{error}</Text> : null}
+      <Button title="Join the shared budget" variant="secondary" small onPress={() => void go()} loading={busy} disabled={code.length < 6} />
+    </View>
+  );
 }
 
 function Welcome({ onNext }: { onNext: () => void }) {
@@ -79,6 +110,7 @@ function Welcome({ onNext }: { onNext: () => void }) {
           })}
         </View>
         <Button title="Build my budget" onPress={onNext} />
+        <JoinWithCode />
       </Animated.View>
     </View>
   );

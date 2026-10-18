@@ -15,6 +15,7 @@ import { getPermission, PermissionState, requestPermission } from '../src/servic
 import { buildCsv } from '../src/services/export';
 import { CurrencySettings } from '../src/features/CurrencySettings';
 import { AccountCard } from '../src/features/AccountCard';
+import { FamilyCard } from '../src/features/FamilyCard';
 import { eraseEverything } from '../src/services/cloudSync';
 import type { ThemePref } from '../src/data/types';
 
@@ -103,6 +104,8 @@ export default function Settings() {
       </View>
 
       <AccountCard />
+
+      <FamilyCard />
 
       <CurrencySettings />
 

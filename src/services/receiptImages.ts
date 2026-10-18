@@ -1,11 +1,11 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
-import { useAuth } from '../data/auth';
+import { useHousehold } from '../data/household';
 
 // Original receipt photos. Each lives in two places:
 //  - a local copy on this device (IndexedDB on web, AsyncStorage on native) so it opens instantly and offline
-//  - the signed-in user's private cloud folder (Supabase Storage bucket "receipts", <user id>/<receipt id>.jpg)
+//  - the household's private cloud folder (Supabase Storage bucket "receipts", <household id>/<receipt id>.jpg)
 // Values are JPEG data URLs on the device and plain JPEG files in the cloud.
 
 const DB = 'allot-receipts';
@@ -35,7 +35,8 @@ async function idb<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRe
 
 const key = (id: string) => `allot.receipt.${id}`;
 const web = () => Platform.OS === 'web' && typeof indexedDB !== 'undefined';
-const uid = () => useAuth.getState().user?.id ?? null;
+// Photos live in the household's folder, so every member can open them. (The name stays `uid` for brevity.)
+const uid = () => useHousehold.getState().id;
 const path = (u: string, id: string) => `${u}/${id}.jpg`;
 
 // ---- local copy ------------------------------------------------------------------------------

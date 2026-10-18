@@ -25,11 +25,11 @@ App Store build: `npx eas build --platform ios --profile production` (bundle id 
 
 Web limits: no scheduled reminders (browsers can't), `npm run web:build` produces `dist/`.
 
-## Accounts & cloud sync (Supabase)
+## Accounts, family sharing & cloud sync (Supabase)
 
-Email + password accounts (Supabase Auth). The whole budget is one JSON document per user in `allot_user_data`; receipt photos go to a private `receipts` storage bucket under `<user id>/`. Both are locked to the owner with Row Level Security. The app keeps a local cache so it works offline and pushes changes when it can; each push carries a version number so two devices can't silently overwrite each other (newer edit wins, the other is backed up locally).
+Email + password accounts (Supabase Auth). Every account belongs to one **household**; the household owns one budget document (`allot_households`) that all its members read and write: the joint view. A new account starts in its own household. **Settings → Family** (or "Use an invite code" on the first screen) lets members invite others with a single-use 7-day code, join with a code, leave (keeping a private copy) or, for the owner, remove people. Receipt photos live in a private `receipts` bucket under `<household id>/`. Everything is locked down with Row Level Security, and membership only changes through security-definer functions (see `supabase/migrations/20261018_allot_households.sql`).
 
-One-time setup: run `supabase/migrations/20261017_allot_cloud.sql` in the Supabase SQL editor. The AI endpoints (`api/*.mjs`) accept only signed-in users: set `SUPABASE_URL` and `SUPABASE_ANON_KEY` as server environment variables so they can verify the caller's token.
+The app keeps a local cache so it works offline and pushes when it can. Each push carries a version number so two devices can't silently overwrite each other (newer edit wins, the other is backed up locally); other members' edits arrive live via Supabase Realtime and on app focus. The AI endpoints (`api/*.mjs`) accept only signed-in users: set `SUPABASE_URL` and `SUPABASE_ANON_KEY` as server environment variables.
 
 ## Switches & settings
 
